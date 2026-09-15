@@ -23,8 +23,8 @@ No Discord, digite: "c+help"
 para ver todos os comandos disponíveis.
 
 ## todo
-separar o codigo 
-docker
-sistema de update
-branch dev
+- separar o codigo 
+- docker
+- sistema de update
+- branch dev
 
