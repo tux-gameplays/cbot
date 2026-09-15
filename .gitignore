@@ -1,0 +1,23 @@
+# Pastas privadas
+Backups/
+Memoria/
+
+# Segredos
+src/.env
+*.pkl
+
+# Arquivos do sistema
+.directory
+
+# Ambiente virtual
+src/venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+
+# IDE
+.vscode/
