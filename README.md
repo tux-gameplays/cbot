@@ -9,23 +9,22 @@ Ele foi criado para automatizar interações e oferecer comandos personalizados 
 - Estrutura simples e fácil de expandir
 
 ## 📂 Estrutura do projeto
-Codigo/
+```Codigo/
  ├── bot.py              # Arquivo principal do bot
  ├── client_secret.json  # Credenciais de autenticação
  ├── token.pkl           # Token salvo
-.env                     # Configurações locais (ignorado pelo Git)
+.env                     # Configurações locais
 .gitignore               # Arquivos e pastas ignorados
 README.md                # Documentação do projeto
-
+```
 ## ▶️ Uso
 No Discord, digite: "c+help"
 
 para ver todos os comandos disponíveis.
 
-## 🛠️ Contribuição
-Contribuições são bem-vindas!  
-Abra uma issue ou envie um pull request.
+## todo
+separar o codigo 
+docker
+sistema de update
+branch dev
 
-## 📜 Licença
-Este projeto está sob a licença MIT.  
-Sinta-se livre para usar, modificar e distribuir.
