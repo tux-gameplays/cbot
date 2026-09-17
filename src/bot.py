@@ -32,17 +32,26 @@ bot.help_command = None
 
 HORA_INICIO = None
 ULTIMO_CODIGO_EM = None
+FUSO_BRT = timezone(timedelta(hours=-3))
 
+# ---------- Variáveis ----------
+
+# Dev
 TOKEN = os.getenv("TOKEN")
+SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
+CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
+SEU_GUILD_ID = int(os.getenv("ID_SERVER"))
+
+# Canais
 CODIGO_ANTECIPADO = int(os.getenv("CODIGO_ANTECIPADO", 0))
 CODIGO_PUBLICO = int(os.getenv("CODIGO_PUBLICO", 0))
-SEU_GUILD_ID = int(os.getenv("ID_SERVER"))
-ADMINISTRADOR = int(os.getenv("Administrador"))
-VIP = int(os.getenv("Vip"))
-AMIGOS = int(os.getenv("Amigos"))
+CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
+
+# Calls
 CALL_LIVE = int(os.getenv("Call_Live"))
 CALL_RECONECTAR = int(os.getenv("Call_Reconectar"))
 
+# Webhooks
 WEBHOOK_CODIGOS = os.getenv("CODIGO_SALAS")
 WEBHOOK_LOGS = os.getenv("LOGS_GERAIS")
 WEBHOOK_ANTECIPADO = os.getenv("CODIGO_SALAS_ANTECIPADO")
@@ -50,29 +59,34 @@ WEBHOOK_LOGS_CODIGOS = os.getenv("LOGS_CODIGOS")
 WEBHOOK_LEMBRETE_CHAT = os.getenv("LEMBRETE_CHAT")
 WEBHOOK_LOGS_PAINEL = os.getenv("LOGS_PAINEL")
 WEBHOOK_ENTRADA = os.getenv("ENTRADA")
-
-CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
-BOT_BANCO_ID = int(os.getenv("BOT_BANCO_ID", 0))
 WEBHOOK_BANCO = os.getenv("BANCO")
 
+# Cargos
+ADMINISTRADOR = int(os.getenv("Administrador"))
+VIP = int(os.getenv("Vip"))
+AMIGOS = int(os.getenv("Amigos"))
+ROLE_PING_LEMBRETE = os.getenv("PING_LEMBRETE", "")
+
+# Pessoas
+BOT_BANCO_ID = int(os.getenv("BOT_BANCO_ID", 0))
+DONO_BOT = int(os.getenv("DONO_BOT", 0))
+CHIP = int(os.getenv("CHIP", 0))
+
+# Memória
 ARQUIVO_VIPS = os.getenv("ARQUIVO_VIPS")
 ARQUIVO_AMIGOS = os.getenv("ARQUIVO_AMIGOS")
 ARQUIVO_WARNS = os.getenv("ARQUIVO_WARNS")
 ARQUIVO_TIMERS = os.getenv("ARQUIVO_TIMERS")
-
 ARQUIVO_BANCO_AV = os.getenv("ARQUIVO_AV_BANCO")
 
+# Pastas
 PASTA_BACKUP = os.getenv("PASTA_BACKUP")
 if not PASTA_BACKUP and ARQUIVO_VIPS:
     PASTA_BACKUP = os.path.join(os.path.dirname(ARQUIVO_VIPS), "Backups")
 
 PASTA_COD = os.getenv("PASTA_COD")
 PASTA_MEMORIAS = os.getenv("PASTA_MEMORIAS")
-
-SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
-CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
-FUSO_BRT = timezone(timedelta(hours=-3))
-ROLE_PING_LEMBRETE = "<@&1541614789808361593>"
+PASTA_BOT_RAIZ = "/home/rpyt51/Documentos/Bots/Bot Chip"
 
 
 # ---------- Webhooks ----------
@@ -592,7 +606,53 @@ async def aplicar_punicao_progressao(guild: discord.Guild, user_id: int, quantid
     return None
 
 
+
+
+def fazer_git_commit(mensagem: str = "Atualiza projeto") -> bool:
+    import subprocess
+    try:
+        os.chdir(PASTA_BOT_RAIZ)
+        result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        if not result.stdout.strip():
+            return False
+        
+        subprocess.run(["git", "add", "."], capture_output=True)
+        subprocess.run(["git", "commit", "-m", mensagem], capture_output=True)
+        push_result = subprocess.run(["git", "push"], capture_output=True)
+        
+        return push_result.returncode == 0
+    except Exception as e:
+        logging.error(f"Erro ao fazer commit Git: {e}")
+        return False
+
+async def git_auto_commit():
+    resultado = fazer_git_commit()
+    if resultado:
+        logging.info("📦 Git: alterações enviadas automaticamente")
+        await registrar_log_normal("📦 Git: alterações enviadas automaticamente", tipo="sucesso")
+    elif resultado is False:
+        logging.info("📦 Git: nenhuma alteração encontrada")
+
+def atualizar_role_ping_lembrete():
+    """Extrai ID do role do formato <@&ID> e busca o nome"""
+    global ROLE_PING_LEMBRETE
+    if not ROLE_PING_LEMBRETE or not ROLE_PING_LEMBRETE.startswith("<@&"):
+        return
+    
+    try:
+        match = re.search(r"<@&(\d+)>", ROLE_PING_LEMBRETE)
+        if match:
+            role_id = int(match.group(1))
+            guild = bot.get_guild(SEU_GUILD_ID)
+            if guild:
+                role = guild.get_role(role_id)
+                if role:
+                    logging.info(f"🏷️ Role ping lembrete: {role.name} (ID: {role_id})")
+    except Exception as e:
+        logging.error(f"Erro ao buscar role ping: {e}")
+
 # ---------- Backup com data e contador ----------
+
 
 def criar_backup_manual() -> str:
     """Cria backup manual com Codigo e Memoria em pasta com data"""
@@ -988,6 +1048,8 @@ async def on_ready():
     retomar_timers_pendentes()
     await retomar_msgs_banco()
     await backup_automatico()
+    atualizar_role_ping_lembrete()
+    await git_auto_commit()
 
 @bot.event
 async def on_member_remove(member: discord.Member):
@@ -1927,6 +1989,41 @@ async def cod_cmd(ctx: commands.Context, codigo: str = None):
 
     await ctx.send(embed=embed)
     await registrar_log_codigo(f"Código enviado via c+cod por {ctx.author} no canal #{ctx.channel}: {conteudo}", tipo="info")
+
+@bot.command(name="git")
+async def git_cmd(ctx: commands.Context):
+    if SERVIDOR_DEVS == 0 or CARGO_DEVS == 0:
+        await ctx.send("🚫 Sistema de dev não configurado.")
+        return
+    
+    servidor_devs = bot.get_guild(SERVIDOR_DEVS)
+    if servidor_devs is None:
+        await ctx.send("🚫 Servidor dos devs não encontrado.")
+        return
+    
+    membro_devs = servidor_devs.get_member(ctx.author.id)
+    if membro_devs is None:
+        try:
+            membro_devs = await servidor_devs.fetch_member(ctx.author.id)
+        except discord.NotFound:
+            membro_devs = None
+    
+    if membro_devs is None or not any(role.id == CARGO_DEVS for role in membro_devs.roles):
+        await ctx.send("🚫 Você não tem permissão (cargo de dev necessário).")
+        return
+    
+    resultado = fazer_git_commit()
+    if resultado:
+        embed = discord.Embed(
+            title="📦 Git atualizado!",
+            description="Alterações enviadas para o GitHub.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    elif resultado is False:
+        await ctx.send("⚠️ Nenhuma alteração encontrada.")
+    else:
+        await ctx.send("❌ Erro ao fazer commit.")
 
 @bot.command(name="backup")
 async def backup(ctx: commands.Context):
