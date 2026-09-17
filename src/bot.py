@@ -84,7 +84,7 @@ PASTA_BACKUP = os.getenv("PASTA_BACKUP")
 if not PASTA_BACKUP and ARQUIVO_VIPS:
     PASTA_BACKUP = os.path.join(os.path.dirname(ARQUIVO_VIPS), "Backups")
 
-PASTA_COD = os.getenv("PASTA_COD")
+PASTA_SRC = os.getenv("PASTA_SRC")
 PASTA_MEMORIAS = os.getenv("PASTA_MEMORIAS")
 PASTA_BOT_RAIZ = "/home/rpyt51/Documentos/Bots/Bot Chip"
 
@@ -656,10 +656,10 @@ def atualizar_role_ping_lembrete():
 
 def criar_backup_manual() -> str:
     """Cria backup manual com Codigo e Memoria em pasta com data"""
-    if not PASTA_BACKUP or not PASTA_COD or not PASTA_MEMORIAS:
+    if not PASTA_BACKUP or not PASTA_SRC or not PASTA_MEMORIAS:
         return None
     
-    if not os.path.exists(PASTA_COD) or not os.path.exists(PASTA_MEMORIAS):
+    if not os.path.exists(PASTA_SRC) or not os.path.exists(PASTA_MEMORIAS):
         return None
     
     os.makedirs(PASTA_BACKUP, exist_ok=True)
@@ -685,7 +685,7 @@ def criar_backup_manual() -> str:
         os.makedirs(caminho_novo_backup, exist_ok=True)
         
         # Copia Codigo
-        shutil.copytree(PASTA_COD, os.path.join(caminho_novo_backup, "Codigo"))
+        shutil.copytree(PASTA_SRC, os.path.join(caminho_novo_backup, "Codigo"))
         
         # Copia Memoria
         shutil.copytree(PASTA_MEMORIAS, os.path.join(caminho_novo_backup, "Memoria"))
@@ -703,7 +703,7 @@ def backup_identico(pasta_backup: str) -> bool:
     try:
         # Compara Codigo
         pasta_cod_backup = os.path.join(pasta_backup, "Codigo")
-        if not pastas_identicas(PASTA_COD, pasta_cod_backup):
+        if not pastas_identicas(PASTA_SRC, pasta_cod_backup):
             return False
         
         # Compara Memoria
@@ -745,10 +745,10 @@ def pastas_identicas(pasta1: str, pasta2: str) -> bool:
 
 async def backup_automatico():
     """Chamado no on_ready pra fazer backup automático"""
-    if not PASTA_BACKUP or not PASTA_COD or not PASTA_MEMORIAS:
+    if not PASTA_BACKUP or not PASTA_SRC or not PASTA_MEMORIAS:
         return
     
-    if not os.path.exists(PASTA_COD) or not os.path.exists(PASTA_MEMORIAS):
+    if not os.path.exists(PASTA_SRC) or not os.path.exists(PASTA_MEMORIAS):
         return
     
     hoje = datetime.now(FUSO_BRT).strftime("%Y-%m-%d")

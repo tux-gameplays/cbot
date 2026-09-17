@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# Pasta Principal do seu bot(onde fica as outras pastas (src, Memoria, Backups))
+cd "" || exit 1
+
+clear
+
+echo "Iniciando bot..."
+
+cd "" || exit 1 # Pasta onde fica os arquivos principais do bot; .env, bot.py etc...
+
+./venv/bin/python bot.py 
