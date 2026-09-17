@@ -40,7 +40,7 @@ FUSO_BRT = timezone(timedelta(hours=-3))
 TOKEN = os.getenv("TOKEN")
 SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
 CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
-SEU_GUILD_ID = int(os.getenv("ID_SERVER"))
+SEU_GUILD_ID = int(os.getenv("SERVIDOR"))
 
 # Canais
 CODIGO_ANTECIPADO = int(os.getenv("CODIGO_ANTECIPADO", 0))
