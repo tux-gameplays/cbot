@@ -611,18 +611,28 @@ async def aplicar_punicao_progressao(guild: discord.Guild, user_id: int, quantid
 def fazer_git_commit(mensagem: str = "Atualiza projeto") -> bool:
     import subprocess
     try:
+        logging.info(f"📦 Git: tentando commit em {PASTA_BOT_RAIZ}")
         os.chdir(PASTA_BOT_RAIZ)
         result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True)
+        logging.info(f"📦 Git: output status = '{result.stdout.strip()}'")
+        
         if not result.stdout.strip():
+            logging.info("📦 Git: nenhuma alteração encontrada")
             return False
         
+        logging.info("📦 Git: fazendo add...")
         subprocess.run(["git", "add", "."], capture_output=True)
+        
+        logging.info("📦 Git: fazendo commit...")
         subprocess.run(["git", "commit", "-m", mensagem], capture_output=True)
-        push_result = subprocess.run(["git", "push"], capture_output=True)
+        
+        logging.info("📦 Git: fazendo push...")
+        push_result = subprocess.run(["git", "push"], capture_output=True, text=True)
+        logging.info(f"📦 Git: push result = {push_result.returncode}")
         
         return push_result.returncode == 0
     except Exception as e:
-        logging.error(f"Erro ao fazer commit Git: {e}")
+        logging.error(f"❌ Erro ao fazer commit Git: {e}")
         return False
 
 async def git_auto_commit():
