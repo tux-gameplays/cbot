@@ -480,6 +480,17 @@ async def adicionar_amigo(user_id: int):
     usuarios = dados.get("usuarios", {})
     usuarios[str(user_id)] = {"amigo": True}
     dados["usuarios"] = usuarios
+
+    guild = bot.get_guild(SEU_GUILD_ID)
+    if guild:
+        membro = guild.get_member(user_id)
+        if membro is None:
+            try:
+                membro = await guild.fetch_member(user_id)
+            except discord.NotFound:
+                membro = None
+        dados = atualizar_info_usuario(dados, user_id, membro)
+
     salvar_amigos(dados)
     await atribuir_cargo_amigo(user_id)
 
@@ -526,7 +537,7 @@ def warns_ativos_do_usuario(user_id: int):
         if str(w.get("user_id")) == str(user_id) and w.get("status") == "ativo"
     ]
 
-def criar_warn(user_id: int, autor_id: int, motivo: str, eterno: bool):
+async def criar_warn(user_id: int, autor_id: int, motivo: str, eterno: bool):
     dados = carregar_warns()
     novo_id = dados["proximo_id"]
     agora = datetime.now(FUSO_BRT)
@@ -544,6 +555,28 @@ def criar_warn(user_id: int, autor_id: int, motivo: str, eterno: bool):
 
     dados["warns"][str(novo_id)] = warn
     dados["proximo_id"] = novo_id + 1
+
+    guild = bot.get_guild(SEU_GUILD_ID)
+    if guild:
+        membro = guild.get_member(user_id)
+        if membro is None:
+            try:
+                membro = await guild.fetch_member(user_id)
+            except discord.NotFound:
+                membro = None
+        if "info_usuarios" not in dados:
+            dados["info_usuarios"] = {}
+        if membro:
+            agora_utc = datetime.now(timezone.utc).isoformat()
+            info = dados["info_usuarios"].get(str(user_id), {})
+            tempo_desde = (datetime.now(timezone.utc) - datetime.fromisoformat(info.get("ultima_atualizacao_info", "1970-01-01T00:00:00+00:00"))).total_seconds()
+            if tempo_desde >= 3600 or "apelido" not in info:
+                dados["info_usuarios"][str(user_id)] = {
+                    "apelido": membro.display_name,
+                    "nome_usuario": membro.name,
+                    "ultima_atualizacao_info": agora_utc
+                }
+
     salvar_warns(dados)
     return warn
 
@@ -642,6 +675,65 @@ async def git_auto_commit():
         await registrar_log_normal("📦 Git: alterações enviadas automaticamente", tipo="sucesso")
     elif resultado is False:
         logging.info("📦 Git: nenhuma alteração encontrada")
+
+async def preencher_info_usuarios():
+    guild = bot.get_guild(SEU_GUILD_ID)
+    if not guild:
+        return
+
+    agora = datetime.now(timezone.utc).isoformat()
+    atualizados = 0
+
+    # VIPs
+    dados_vip = carregar_vips()
+    for user_id_str, info in dados_vip["usuarios"].items():
+        if "apelido" not in info or "nome_usuario" not in info:
+            try:
+                membro = guild.get_member(int(user_id_str)) or await guild.fetch_member(int(user_id_str))
+                info["apelido"] = membro.display_name
+                info["nome_usuario"] = membro.name
+                info["ultima_atualizacao_info"] = agora
+                atualizados += 1
+            except Exception:
+                pass
+    salvar_vips(dados_vip)
+
+    # Amigos
+    dados_amigos = carregar_amigos()
+    for user_id_str, info in dados_amigos["usuarios"].items():
+        if "apelido" not in info or "nome_usuario" not in info:
+            try:
+                membro = guild.get_member(int(user_id_str)) or await guild.fetch_member(int(user_id_str))
+                info["apelido"] = membro.display_name
+                info["nome_usuario"] = membro.name
+                info["ultima_atualizacao_info"] = agora
+                atualizados += 1
+            except Exception:
+                pass
+    salvar_amigos(dados_amigos)
+
+    # Warns
+    dados_warns = carregar_warns()
+    usuarios_warns = set(str(w["user_id"]) for w in dados_warns["warns"].values())
+    for user_id_str in usuarios_warns:
+        warn_info = dados_warns.get("info_usuarios", {}).get(user_id_str, {})
+        if "apelido" not in warn_info or "nome_usuario" not in warn_info:
+            try:
+                membro = guild.get_member(int(user_id_str)) or await guild.fetch_member(int(user_id_str))
+                if "info_usuarios" not in dados_warns:
+                    dados_warns["info_usuarios"] = {}
+                dados_warns["info_usuarios"][user_id_str] = {
+                    "apelido": membro.display_name,
+                    "nome_usuario": membro.name,
+                    "ultima_atualizacao_info": agora
+                }
+                atualizados += 1
+            except Exception:
+                pass
+    salvar_warns(dados_warns)
+
+    if atualizados > 0:
+        logging.info(f"👤 Info de {atualizados} usuário(s) preenchida(s) nos JSONs")
 
 def atualizar_role_ping_lembrete():
     """Extrai ID do role do formato <@&ID> e busca o nome"""
@@ -1060,6 +1152,7 @@ async def on_ready():
     await backup_automatico()
     atualizar_role_ping_lembrete()
     await git_auto_commit()
+    await preencher_info_usuarios()
 
 @bot.event
 async def on_member_remove(member: discord.Member):
@@ -1456,7 +1549,7 @@ class WarnMotivoModal(discord.ui.Modal, title="⚠️ Motivo do Warn"):
         self.eterno = eterno
 
     async def on_submit(self, interaction: discord.Interaction):
-        warn_criado = criar_warn(self.user_id, interaction.user.id, self.motivo.value, self.eterno)
+        warn_criado = await criar_warn(self.user_id, interaction.user.id, self.motivo.value, self.eterno)
         quantidade_ativos = len(warns_ativos_do_usuario(self.user_id))
 
         resultado_punicao = await aplicar_punicao_progressao(interaction.guild, self.user_id, quantidade_ativos)
@@ -2151,7 +2244,7 @@ async def processar_novo_warn(ctx: commands.Context, alvo: str, motivo: str, ete
     if user_id is None:
         return
 
-    warn = criar_warn(user_id, ctx.author.id, motivo, eterno)
+    warn = await criar_warn(user_id, ctx.author.id, motivo, eterno)
     quantidade_ativos = len(warns_ativos_do_usuario(user_id))
 
     embed = discord.Embed(
