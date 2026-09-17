@@ -30,24 +30,19 @@ intents.members = True
 bot = commands.Bot(command_prefix="c+", intents=intents)
 bot.help_command = None
 
-# ---------- Variaveis ----------
+HORA_INICIO = None
+ULTIMO_CODIGO_EM = None
 
-# Dev
 TOKEN = os.getenv("TOKEN")
-SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
-CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
-SEU_GUILD_ID = int(os.getenv("SERVIDOR"))
-
-# Canais
 CODIGO_ANTECIPADO = int(os.getenv("CODIGO_ANTECIPADO", 0))
 CODIGO_PUBLICO = int(os.getenv("CODIGO_PUBLICO", 0))
-CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
-
-# Calls
+SEU_GUILD_ID = int(os.getenv("ID_SERVER"))
+ADMINISTRADOR = int(os.getenv("Administrador"))
+VIP = int(os.getenv("Vip"))
+AMIGOS = int(os.getenv("Amigos"))
 CALL_LIVE = int(os.getenv("Call_Live"))
 CALL_RECONECTAR = int(os.getenv("Call_Reconectar"))
 
-# Webhooks
 WEBHOOK_CODIGOS = os.getenv("CODIGO_SALAS")
 WEBHOOK_LOGS = os.getenv("LOGS_GERAIS")
 WEBHOOK_ANTECIPADO = os.getenv("CODIGO_SALAS_ANTECIPADO")
@@ -55,35 +50,29 @@ WEBHOOK_LOGS_CODIGOS = os.getenv("LOGS_CODIGOS")
 WEBHOOK_LEMBRETE_CHAT = os.getenv("LEMBRETE_CHAT")
 WEBHOOK_LOGS_PAINEL = os.getenv("LOGS_PAINEL")
 WEBHOOK_ENTRADA = os.getenv("ENTRADA")
+
+CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
+BOT_BANCO_ID = int(os.getenv("BOT_BANCO_ID", 0))
 WEBHOOK_BANCO = os.getenv("BANCO")
 
-# Cargos
-ADMINISTRADOR = int(os.getenv("Administrador"))
-VIP = int(os.getenv("Vip"))
-AMIGOS = int(os.getenv("Amigos"))
-LEMBRETE = os.getenv("PING_LEMBRETE")
-
-# Pessoas
-BOT_BANCO_ID = int(os.getenv("BOT_BANCO_ID", 0))
-DONO_BOT = int(os.getenv("DONO_BOT", 0))
-CHIP = int(os.getenv("CHIP", 0))
-
-# Memoria
 ARQUIVO_VIPS = os.getenv("ARQUIVO_VIPS")
 ARQUIVO_AMIGOS = os.getenv("ARQUIVO_AMIGOS")
 ARQUIVO_WARNS = os.getenv("ARQUIVO_WARNS")
 ARQUIVO_TIMERS = os.getenv("ARQUIVO_TIMERS")
+
 ARQUIVO_BANCO_AV = os.getenv("ARQUIVO_AV_BANCO")
 
-# Pastas
 PASTA_BACKUP = os.getenv("PASTA_BACKUP")
+if not PASTA_BACKUP and ARQUIVO_VIPS:
+    PASTA_BACKUP = os.path.join(os.path.dirname(ARQUIVO_VIPS), "Backups")
+
 PASTA_COD = os.getenv("PASTA_COD")
 PASTA_MEMORIAS = os.getenv("PASTA_MEMORIAS")
 
-# Algo
-HORA_INICIO = None
-ULTIMO_CODIGO_EM = None
+SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
+CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
 FUSO_BRT = timezone(timedelta(hours=-3))
+ROLE_PING_LEMBRETE = "<@&1541614789808361593>"
 
 
 # ---------- Webhooks ----------
@@ -205,6 +194,27 @@ def consultar_vip(user_id: int):
     dados = carregar_vips()
     return dados.get("usuarios", {}).get(str(user_id), {"vip": False})
 
+def atualizar_info_usuario(dados: dict, user_id: int, membro: discord.Member = None):
+    """Atualiza apelido e nome do usuário no JSON se necessário (máximo 1x por hora)"""
+    user_id_str = str(user_id)
+    if user_id_str not in dados["usuarios"]:
+        dados["usuarios"][user_id_str] = {}
+    
+    usuario = dados["usuarios"][user_id_str]
+    agora = datetime.now(timezone.utc).isoformat()
+    
+    # Verifica se precisa atualizar (máximo a cada 1 hora)
+    ultima_atualizacao = usuario.get("ultima_atualizacao_info", "1970-01-01T00:00:00")
+    tempo_desde_update = (datetime.now(timezone.utc) - datetime.fromisoformat(ultima_atualizacao)).total_seconds()
+    
+    if tempo_desde_update >= 3600 or "apelido" not in usuario:  # 3600 = 1 hora
+        if membro:
+            usuario["apelido"] = membro.display_name
+            usuario["nome_usuario"] = membro.name
+        usuario["ultima_atualizacao_info"] = agora
+    
+    return dados
+
 async def atribuir_cargo_vip(user_id: int):
     guild = bot.get_guild(SEU_GUILD_ID)
     if guild is None:
@@ -272,7 +282,20 @@ async def adicionar_vip(user_id: int, dias: int = None):
             "eterno": False
         }
 
+
     dados["usuarios"] = usuarios
+    
+    # Atualizar apelido e nome do usuário
+    guild = bot.get_guild(SEU_GUILD_ID)
+    if guild:
+        membro = guild.get_member(user_id)
+        if membro is None:
+            try:
+                membro = await guild.fetch_member(user_id)
+            except discord.NotFound:
+                membro = None
+        dados = atualizar_info_usuario(dados, user_id, membro)
+    
     salvar_vips(dados)
     if not ja_tinha_vip:
         await atribuir_cargo_vip(user_id)
@@ -2443,8 +2466,6 @@ async def painel(interaction: discord.Interaction):
     embed_log.add_field(name="ID do usuário", value=str(interaction.user.id), inline=True)
     await registrar_log_painel(embed_log)
 
-
-# ---------- Help ----------
 
 COMANDOS_INFO = {
     "ping": {"uso": "c+ping", "descricao": "Mostra a latência do bot."},
