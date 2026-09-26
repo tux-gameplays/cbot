@@ -5,6 +5,7 @@ Memoria/
 # Segredos
 src/.env
 *.pkl
+cbot.sh
 
 # Arquivos do sistema
 .directory
