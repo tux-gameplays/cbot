@@ -1,12 +1,16 @@
 import discord
 import json
 import os
-from datetime import datetime, timedelta
-from discord.ext import tasks
-from Modulos.webhooks import registrar_log_normal, registrar_log_painel
+from datetime import datetime, timedelta, timezone
+
+def _parse_dt(s: str) -> datetime:
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 def carregar_vips(arquivo: str):
-    if not os.path.exists(arquivo):
+    if not arquivo or not os.path.exists(arquivo):
         return {"usuarios": {}}
     try:
         with open(arquivo, "r", encoding="utf-8") as f:
@@ -23,62 +27,62 @@ def consultar_vip(user_id: int, arquivo: str):
     return dados.get("usuarios", {}).get(str(user_id), {"vip": False})
 
 def atualizar_info_usuario(dados: dict, user_id: int, membro: discord.Member = None):
-    from datetime import timezone
     user_id_str = str(user_id)
     if user_id_str not in dados["usuarios"]:
         dados["usuarios"][user_id_str] = {}
 
     usuario = dados["usuarios"][user_id_str]
-    agora = datetime.now(timezone.utc).isoformat()
+    agora = datetime.now(timezone.utc)
+    agora_iso = agora.isoformat()
 
-    ultima_atualizacao = usuario.get("ultima_atualizacao_info", "1970-01-01T00:00:00")
-    tempo_desde_update = (datetime.now(timezone.utc) - datetime.fromisoformat(ultima_atualizacao)).total_seconds()
+    ultima_str = usuario.get("ultima_atualizacao_info", "1970-01-01T00:00:00+00:00")
+    tempo_desde_update = (agora - _parse_dt(ultima_str)).total_seconds()
 
     if tempo_desde_update >= 3600 or "apelido" not in usuario:
         if membro:
             usuario["apelido"] = membro.display_name
             usuario["nome_usuario"] = membro.name
-        usuario["ultima_atualizacao_info"] = agora
+        usuario["ultima_atualizacao_info"] = agora_iso
 
     return dados
 
-async def atribuir_cargo_vip(user_id: int, bot, guild_id: int, vip_role_id: int, webhook_logs: str):
+async def _get_membro(bot, guild_id, user_id):
     guild = bot.get_guild(guild_id)
-    if guild is None:
-        await registrar_log_normal(f"Guild não encontrada ao tentar dar cargo VIP a {user_id}.", tipo="erro", webhook_logs=webhook_logs)
-        return
-    cargo = guild.get_role(vip_role_id)
+    if not guild:
+        return None, None
     membro = guild.get_member(user_id)
     if membro is None:
         try:
             membro = await guild.fetch_member(user_id)
         except discord.NotFound:
             membro = None
+    return guild, membro
+
+async def atribuir_cargo_vip(user_id: int, bot, guild_id: int, vip_role_id: int, cfg: dict = None):
+    guild, membro = await _get_membro(bot, guild_id, user_id)
+    if not guild:
+        return
+    cargo = guild.get_role(vip_role_id)
     if cargo and membro:
         try:
             await membro.add_roles(cargo, reason="VIP ativado")
         except Exception as e:
-            await registrar_log_normal(f"Erro ao dar cargo VIP a {user_id}: {e}", tipo="erro", webhook_logs=webhook_logs)
+            import logging
+            logging.error(f"Erro ao dar cargo VIP a {user_id}: {e}")
 
-async def remover_cargo_vip(user_id: int, bot, guild_id: int, vip_role_id: int, webhook_logs: str):
-    guild = bot.get_guild(guild_id)
-    if guild is None:
-        await registrar_log_normal(f"Guild não encontrada ao tentar tirar cargo VIP de {user_id}.", tipo="erro", webhook_logs=webhook_logs)
+async def remover_cargo_vip(user_id: int, bot, guild_id: int, vip_role_id: int, cfg: dict = None):
+    guild, membro = await _get_membro(bot, guild_id, user_id)
+    if not guild:
         return
     cargo = guild.get_role(vip_role_id)
-    membro = guild.get_member(user_id)
-    if membro is None:
-        try:
-            membro = await guild.fetch_member(user_id)
-        except discord.NotFound:
-            membro = None
     if cargo and membro:
         try:
             await membro.remove_roles(cargo, reason="VIP desativado")
         except Exception as e:
-            await registrar_log_normal(f"Erro ao tirar cargo VIP de {user_id}: {e}", tipo="erro", webhook_logs=webhook_logs)
+            import logging
+            logging.error(f"Erro ao tirar cargo VIP de {user_id}: {e}")
 
-async def adicionar_vip(user_id: int, dias, bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, webhook_logs: str):
+async def adicionar_vip(user_id: int, dias, bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, cfg: dict = None):
     dados = carregar_vips(arquivo)
     usuarios = dados.get("usuarios", {})
     agora = datetime.now(fuso_brt)
@@ -94,7 +98,9 @@ async def adicionar_vip(user_id: int, dias, bot, guild_id: int, vip_role_id: int
     else:
         base = agora
         if ja_tinha_vip and info.get("expira_em"):
-            expira_atual = datetime.fromisoformat(info["expira_em"])
+            expira_atual = _parse_dt(info["expira_em"])
+            if expira_atual.tzinfo is None:
+                expira_atual = expira_atual.replace(tzinfo=fuso_brt)
             if expira_atual > agora:
                 base = expira_atual
         usuarios[str(user_id)] = {
@@ -105,22 +111,15 @@ async def adicionar_vip(user_id: int, dias, bot, guild_id: int, vip_role_id: int
         }
 
     dados["usuarios"] = usuarios
-
-    guild = bot.get_guild(guild_id)
+    guild, membro = await _get_membro(bot, guild_id, user_id)
     if guild:
-        membro = guild.get_member(user_id)
-        if membro is None:
-            try:
-                membro = await guild.fetch_member(user_id)
-            except discord.NotFound:
-                membro = None
         dados = atualizar_info_usuario(dados, user_id, membro)
 
     salvar_vips(dados, arquivo)
     if not ja_tinha_vip:
-        await atribuir_cargo_vip(user_id, bot, guild_id, vip_role_id, webhook_logs)
+        await atribuir_cargo_vip(user_id, bot, guild_id, vip_role_id)
 
-async def remover_vip(user_id: int, bot, guild_id: int, vip_role_id: int, arquivo: str, webhook_logs: str):
+async def remover_vip(user_id: int, bot, guild_id: int, vip_role_id: int, arquivo: str, cfg: dict = None):
     dados = carregar_vips(arquivo)
     usuarios = dados.get("usuarios", {})
     if str(user_id) in usuarios:
@@ -129,9 +128,9 @@ async def remover_vip(user_id: int, bot, guild_id: int, vip_role_id: int, arquiv
         usuarios[str(user_id)]["eterno"] = False
     dados["usuarios"] = usuarios
     salvar_vips(dados, arquivo)
-    await remover_cargo_vip(user_id, bot, guild_id, vip_role_id, webhook_logs)
+    await remover_cargo_vip(user_id, bot, guild_id, vip_role_id)
 
-async def setar_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, webhook_logs: str):
+async def setar_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, cfg: dict = None):
     dados = carregar_vips(arquivo)
     usuarios = dados.get("usuarios", {})
     info = usuarios.get(str(user_id), {})
@@ -149,9 +148,9 @@ async def setar_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_role_
     dados["usuarios"] = usuarios
     salvar_vips(dados, arquivo)
     if not ja_tinha_vip:
-        await atribuir_cargo_vip(user_id, bot, guild_id, vip_role_id, webhook_logs)
+        await atribuir_cargo_vip(user_id, bot, guild_id, vip_role_id)
 
-async def remover_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, webhook_logs: str):
+async def remover_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, cfg: dict = None):
     dados = carregar_vips(arquivo)
     usuarios = dados.get("usuarios", {})
     info = usuarios.get(str(user_id))
@@ -161,9 +160,14 @@ async def remover_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_rol
     if info.get("expira_em") is None:
         return "eterno"
 
-    expira = datetime.fromisoformat(info["expira_em"])
+    expira = _parse_dt(info["expira_em"])
     nova_expira = expira - timedelta(days=dias)
     agora = datetime.now(fuso_brt)
+
+    if nova_expira.tzinfo is None:
+        nova_expira = nova_expira.replace(tzinfo=fuso_brt)
+    if agora.tzinfo is None:
+        agora = agora.replace(tzinfo=fuso_brt)
 
     if nova_expira <= agora:
         info["vip"] = False
@@ -179,10 +183,10 @@ async def remover_tempo_vip(user_id: int, dias: int, bot, guild_id: int, vip_rol
     salvar_vips(dados, arquivo)
 
     if resultado == "desativado":
-        await remover_cargo_vip(user_id, bot, guild_id, vip_role_id, webhook_logs)
+        await remover_cargo_vip(user_id, bot, guild_id, vip_role_id)
     return resultado
 
-async def checar_vips_expirados(bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, webhook_logs: str):
+async def checar_vips_expirados(bot, guild_id: int, vip_role_id: int, arquivo: str, fuso_brt, cfg: dict = None):
     dados = carregar_vips(arquivo)
     usuarios = dados.get("usuarios", {})
     agora = datetime.now(fuso_brt)
@@ -190,7 +194,10 @@ async def checar_vips_expirados(bot, guild_id: int, vip_role_id: int, arquivo: s
 
     for user_id, info in usuarios.items():
         if info.get("vip") and info.get("expira_em"):
-            if datetime.fromisoformat(info["expira_em"]) <= agora:
+            expira = _parse_dt(info["expira_em"])
+            if expira.tzinfo is None:
+                expira = expira.replace(tzinfo=fuso_brt)
+            if expira <= agora:
                 info["vip"] = False
                 info["expira_em"] = None
                 info["eterno"] = False
@@ -200,6 +207,6 @@ async def checar_vips_expirados(bot, guild_id: int, vip_role_id: int, arquivo: s
         dados["usuarios"] = usuarios
         salvar_vips(dados, arquivo)
         for user_id in expirados:
-            await remover_cargo_vip(int(user_id), bot, guild_id, vip_role_id, webhook_logs)
+            await remover_cargo_vip(int(user_id), bot, guild_id, vip_role_id)
 
     return expirados

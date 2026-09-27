@@ -151,7 +151,7 @@ async def mostrar_gerenciar_warns(interaction: discord.Interaction, user_id: int
                     description=f"{interaction_btn.user.mention} removeu o warn #{ultimo['id']} de <@{user_id}> pelo painel.",
                     color=discord.Color.red()
                 )
-                await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+                await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_warns(interaction_btn, user_id, cfg)
 
         botao_remover_ultimo.callback = remover_ultimo_callback
@@ -182,7 +182,7 @@ class WarnMotivoModal(discord.ui.Modal, title="⚠️ Motivo do Warn"):
         resultado_punicao = await aplicar_punicao_progressao(
             interaction.guild, self.user_id, quantidade_ativos,
             self.cfg["bot"], self.cfg["guild_id"], self.cfg["vip_role_id"], self.cfg["amigos_role_id"],
-            self.cfg["arquivo_vips"], self.cfg["arquivo_amigos"], self.cfg["fuso_brt"], self.cfg["webhook_logs"]
+            self.cfg["arquivo_vips"], self.cfg["arquivo_amigos"], self.cfg["fuso_brt"]
         )
 
         embed_log = discord.Embed(
@@ -194,7 +194,7 @@ class WarnMotivoModal(discord.ui.Modal, title="⚠️ Motivo do Warn"):
         embed_log.add_field(name="Warns ativos", value=str(quantidade_ativos), inline=True)
         if resultado_punicao:
             embed_log.add_field(name="Punição automática", value=resultado_punicao, inline=False)
-        await registrar_log_painel(embed_log, webhook_logs_painel=self.cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=self.cfg["bot"], canal_id=self.cfg.get("logs_painel"))
         await mostrar_gerenciar_warns(interaction, self.user_id, self.cfg)
 
 class VIPModal(discord.ui.Modal, title="💎 Gerenciar VIP"):
@@ -246,20 +246,20 @@ async def mostrar_gerenciar_amigo(interaction: discord.Interaction, user_id: int
     if tem_amigo:
         botao_remover = discord.ui.Button(label="Remover Amigo", style=discord.ButtonStyle.red)
         async def remover_callback(interaction_btn: discord.Interaction):
-            await remover_amigo(user_id, cfg["bot"], cfg["guild_id"], cfg["amigos_role_id"], cfg["arquivo_amigos"], cfg["webhook_logs"])
+            await remover_amigo(user_id, cfg["bot"], cfg["guild_id"], cfg["amigos_role_id"], cfg["arquivo_amigos"])
             embed_log = discord.Embed(title="👥 Amigo removido", description=f"{interaction_btn.user.mention} removeu o cargo de Amigo de <@{user_id}>.", color=discord.Color.red())
             embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_amigo(interaction_btn, user_id, cfg)
         botao_remover.callback = remover_callback
         view.add_item(botao_remover)
     else:
         botao_add = discord.ui.Button(label="Adicionar Amigo", style=discord.ButtonStyle.green)
         async def adicionar_callback(interaction_btn: discord.Interaction):
-            await adicionar_amigo(user_id, cfg["bot"], cfg["guild_id"], cfg["amigos_role_id"], cfg["arquivo_amigos"], cfg["webhook_logs"])
+            await adicionar_amigo(user_id, cfg["bot"], cfg["guild_id"], cfg["amigos_role_id"], cfg["arquivo_amigos"])
             embed_log = discord.Embed(title="👥 Amigo adicionado", description=f"{interaction_btn.user.mention} adicionou o cargo de Amigo para <@{user_id}>.", color=discord.Color.teal())
             embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_amigo(interaction_btn, user_id, cfg)
         botao_add.callback = adicionar_callback
         view.add_item(botao_add)
@@ -321,7 +321,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
             description=f"{interaction_btn.user.mention} {'liberou' if entrada_bloqueada else 'bloqueou'} a entrada em {canal.mention}.",
             color=discord.Color.green() if entrada_bloqueada else discord.Color.red()
         )
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
         await mostrar_gerenciar_call(interaction_btn, cfg)
 
     botao_entrada.callback = entrada_callback
@@ -339,7 +339,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
                 description=f"{interaction_btn.user.mention} {'liberou' if fala_bloqueada else 'bloqueou'} a fala em {canal.mention}.",
                 color=discord.Color.green() if fala_bloqueada else discord.Color.red()
             )
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_call(interaction_btn, cfg)
 
         botao_fala.callback = fala_callback
@@ -356,7 +356,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
                     afetados.append(membro)
                 except Exception as e:
                     from Modulos.webhooks import registrar_log_normal
-                    await registrar_log_normal(f"Erro ao mutar/desmutar {membro.id} na call: {e}", tipo="erro", webhook_logs=cfg["webhook_logs"])
+                    await registrar_log_normal(f"Erro ao mutar/desmutar {membro.id} na call: {e}", tipo="erro", bot=cfg["bot"], canal_id=cfg.get("logs_gerais"))
             embed_log = discord.Embed(
                 title="🔊 Todos desmutados" if todos_mutados else "🔇 Todos mutados",
                 description=f"{interaction_btn.user.mention} {'desmutou' if todos_mutados else 'mutou'} {len(afetados)} pessoa(s) em {canal.mention}.",
@@ -364,7 +364,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
             )
             if afetados:
                 embed_log.add_field(name="Desmutados" if todos_mutados else "Mutados", value="\n".join(m.mention for m in afetados), inline=False)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_call(interaction_btn, cfg)
 
         botao_mute.callback = mute_callback
@@ -382,11 +382,11 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
                     afetados.append(membro)
                 except Exception as e:
                     from Modulos.webhooks import registrar_log_normal
-                    await registrar_log_normal(f"Erro ao desconectar {membro.id} da call: {e}", tipo="erro", webhook_logs=cfg["webhook_logs"])
+                    await registrar_log_normal(f"Erro ao desconectar {membro.id} da call: {e}", tipo="erro", bot=cfg["bot"], canal_id=cfg.get("logs_gerais"))
             embed_log = discord.Embed(title="👢 Todos desconectados da call", description=f"{interaction_btn.user.mention} desconectou {len(afetados)} pessoa(s) de {canal.mention}.", color=discord.Color.orange())
             if afetados:
                 embed_log.add_field(name="Desconectados", value="\n".join(m.mention for m in afetados), inline=False)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_call(interaction_btn, cfg)
 
         botao_desconectar.callback = desconectar_callback
@@ -405,11 +405,11 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
                     afetados.append(membro)
                 except Exception as e:
                     from Modulos.webhooks import registrar_log_normal
-                    await registrar_log_normal(f"Erro ao reconectar {membro.id} na call: {e}", tipo="erro", webhook_logs=cfg["webhook_logs"])
+                    await registrar_log_normal(f"Erro ao reconectar {membro.id} na call: {e}", tipo="erro", bot=cfg["bot"], canal_id=cfg.get("logs_gerais"))
             embed_log = discord.Embed(title="🔄 Reconexão forçada na call", description=f"{interaction_btn.user.mention} reconectou {len(afetados)} pessoa(s) em {canal.mention}.", color=discord.Color.blurple())
             if afetados:
                 embed_log.add_field(name="Reconectados", value="\n".join(m.mention for m in afetados), inline=False)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_call(interaction_btn, cfg)
 
         botao_reconectar.callback = reconectar_callback
@@ -432,10 +432,10 @@ async def mostrar_setar_tempo_vip(interaction: discord.Interaction, user_id: int
         botao = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple)
 
         async def callback(interaction_btn: discord.Interaction, dias=dias):
-            await setar_tempo_vip(user_id, dias, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["fuso_brt"], cfg["webhook_logs"])
+            await setar_tempo_vip(user_id, dias, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["fuso_brt"])
             embed_log = discord.Embed(title="🕒 Tempo de VIP setado", description=f"{interaction_btn.user.mention} setou o VIP de <@{user_id}> para {dias} dia(s), substituindo o tempo anterior.", color=discord.Color.gold())
             embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_vip(interaction_btn, user_id, True, cfg)
 
         botao.callback = callback
@@ -461,12 +461,12 @@ async def mostrar_adicionar_vip(interaction: discord.Interaction, user_id: int, 
         botao = discord.ui.Button(label=label, style=discord.ButtonStyle.green)
 
         async def callback(interaction_btn: discord.Interaction, dias=dias):
-            await adicionar_vip(user_id, dias, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["fuso_brt"], cfg["webhook_logs"])
+            await adicionar_vip(user_id, dias, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["fuso_brt"])
             label_tempo = "Eterno" if dias is None else f"{dias} dia(s)"
             embed_log = discord.Embed(title="💎 VIP adicionado", description=f"{interaction_btn.user.mention} adicionou VIP para <@{user_id}>.", color=discord.Color.green())
             embed_log.add_field(name="Tempo", value=label_tempo, inline=True)
             embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_vip(interaction_btn, user_id, True, cfg)
 
         botao.callback = callback
@@ -489,7 +489,7 @@ async def mostrar_remover_tempo_vip(interaction: discord.Interaction, user_id: i
         botao = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple)
 
         async def callback(interaction_btn: discord.Interaction, dias=dias):
-            resultado = await remover_tempo_vip(user_id, dias, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["fuso_brt"], cfg["webhook_logs"])
+            resultado = await remover_tempo_vip(user_id, dias, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["fuso_brt"])
             if resultado == "eterno":
                 descricao_log = f"{interaction_btn.user.mention} tentou remover {dias} dia(s) de <@{user_id}>, mas o VIP é eterno (nada foi alterado)."
                 cor = discord.Color.greyple()
@@ -502,7 +502,7 @@ async def mostrar_remover_tempo_vip(interaction: discord.Interaction, user_id: i
 
             embed_log = discord.Embed(title="➖ Tempo de VIP removido", description=descricao_log, color=cor)
             embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_vip(interaction_btn, user_id, True, cfg)
 
         botao.callback = callback
@@ -551,10 +551,10 @@ async def mostrar_gerenciar_vip(interaction: discord.Interaction, user_id: int, 
             await mostrar_setar_tempo_vip(interaction_btn, user_id, tem_vip, cfg)
 
         async def remover_callback(interaction_btn: discord.Interaction):
-            await remover_vip(user_id, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"], cfg["webhook_logs"])
+            await remover_vip(user_id, cfg["bot"], cfg["guild_id"], cfg["vip_role_id"], cfg["arquivo_vips"])
             embed_log = discord.Embed(title="🗑️ VIP removido", description=f"{interaction_btn.user.mention} removeu o VIP de <@{user_id}>.", color=discord.Color.red())
             embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             await mostrar_gerenciar_vip(interaction_btn, user_id, False, cfg)
 
         botao_setar_tempo.callback = setar_tempo_callback

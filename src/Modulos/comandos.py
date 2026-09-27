@@ -66,7 +66,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         except Exception:
             pass
         await ctx.send(embed=embed)
-        await registrar_log_codigo(f"Código enviado via c+cod por {ctx.author} no canal #{ctx.channel}: {conteudo}", tipo="info", webhook_logs_codigos=cfg["webhook_logs_codigos"])
+        await registrar_log_codigo(f"Código enviado via c+cod por {ctx.author} no canal #{ctx.channel}: {conteudo}", tipo="info", bot=cfg["bot"], canal_id=cfg.get("logs_codigos"))
 
     @bot.command(name="git")
     async def git_cmd(ctx: commands.Context):
@@ -93,7 +93,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
             embed = discord.Embed(title="💾 Backup criado com sucesso!", description=f"Pasta: **{versao}**", color=discord.Color.green())
             await ctx.send(embed=embed)
             embed_log = discord.Embed(title="💾 Backup da pasta criado", description=f"{ctx.author.mention} criou um backup manualmente ({versao}).", color=discord.Color.green())
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
         elif versao is None:
             await ctx.send("⚠️ Backup já existe com conteúdo idêntico, ignorando.")
         else:
@@ -207,7 +207,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         await canal.set_permissions(everyone, overwrite=overwrite)
         await ctx.send(f"🔒 Entrada da call {canal.mention} bloqueada.")
         embed_log = discord.Embed(title="🔒 Entrada da call bloqueada", description=f"{ctx.author.mention} bloqueou a entrada em {canal.mention} via comando.", color=discord.Color.red())
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.command(name="call_mute")
     async def call_mute_cmd(ctx: commands.Context):
@@ -224,7 +224,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         await canal.set_permissions(everyone, overwrite=overwrite)
         await ctx.send(f"🔇 Fala da call {canal.mention} bloqueada.")
         embed_log = discord.Embed(title="🔇 Fala da call bloqueada", description=f"{ctx.author.mention} bloqueou a fala em {canal.mention} via comando.", color=discord.Color.red())
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.command(name="call_allmute")
     async def call_allmute_cmd(ctx: commands.Context):
@@ -242,12 +242,12 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
                 await membro.edit(mute=True, reason="Mute geral - comando")
                 afetados.append(membro)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao mutar {membro.id} na call: {e}", tipo="erro", webhook_logs=cfg["webhook_logs"])
+                await registrar_log_normal(f"Erro ao mutar {membro.id} na call: {e}", tipo="erro", bot=cfg["bot"], canal_id=cfg.get("logs_gerais"))
         await ctx.send(f"🔇 {len(afetados)} pessoa(s) mutada(s) em {canal.mention}.")
         embed_log = discord.Embed(title="🔇 Todos mutados", description=f"{ctx.author.mention} mutou {len(afetados)} pessoa(s) em {canal.mention} via comando.", color=discord.Color.red())
         if afetados:
             embed_log.add_field(name="Mutados", value="\n".join(m.mention for m in afetados), inline=False)
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.command(name="call_allkick")
     async def call_allkick_cmd(ctx: commands.Context):
@@ -265,12 +265,12 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
                 await membro.move_to(None, reason="Desconectar todos - comando")
                 afetados.append(membro)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao desconectar {membro.id} da call: {e}", tipo="erro", webhook_logs=cfg["webhook_logs"])
+                await registrar_log_normal(f"Erro ao desconectar {membro.id} da call: {e}", tipo="erro", bot=cfg["bot"], canal_id=cfg.get("logs_gerais"))
         await ctx.send(f"👢 {len(afetados)} pessoa(s) desconectada(s) de {canal.mention}.")
         embed_log = discord.Embed(title="👢 Todos desconectados da call", description=f"{ctx.author.mention} desconectou {len(afetados)} pessoa(s) de {canal.mention} via comando.", color=discord.Color.orange())
         if afetados:
             embed_log.add_field(name="Desconectados", value="\n".join(m.mention for m in afetados), inline=False)
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.command(name="call_reconnect", aliases=["cr"])
     async def call_reconnect_cmd(ctx: commands.Context):
@@ -296,12 +296,12 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
                 await membro.move_to(canal, reason="Reconectar - comando")
                 afetados.append(membro)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao reconectar {membro.id} na call: {e}", tipo="erro", webhook_logs=cfg["webhook_logs"])
+                await registrar_log_normal(f"Erro ao reconectar {membro.id} na call: {e}", tipo="erro", bot=cfg["bot"], canal_id=cfg.get("logs_gerais"))
         await ctx.send(f"🔄 {len(afetados)} pessoa(s) reconectada(s) em {canal.mention}.")
         embed_log = discord.Embed(title="🔄 Reconexão forçada na call", description=f"{ctx.author.mention} reconectou {len(afetados)} pessoa(s) em {canal.mention} via comando.", color=discord.Color.blurple())
         if afetados:
             embed_log.add_field(name="Reconectados", value="\n".join(m.mention for m in afetados), inline=False)
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     async def processar_novo_warn(ctx: commands.Context, alvo: str, motivo: str, eterno: bool):
         if not eh_admin_membro(ctx.author, cfg["admin_role_id"]):
@@ -326,7 +326,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         resultado_punicao = await aplicar_punicao_progressao(
             ctx.guild, user_id, quantidade_ativos, bot, cfg["guild_id"],
             cfg["vip_role_id"], cfg["amigos_role_id"], cfg["arquivo_vips"], cfg["arquivo_amigos"],
-            cfg["fuso_brt"], cfg["webhook_logs"]
+            cfg["fuso_brt"]
         )
         embed_log = discord.Embed(
             title="⚠️ Warn aplicado" if not eterno else "♾️ Warn eterno aplicado",
@@ -337,7 +337,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         embed_log.add_field(name="Warns ativos", value=str(quantidade_ativos), inline=True)
         if resultado_punicao:
             embed_log.add_field(name="Punição automática", value=resultado_punicao, inline=False)
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.command(name="warn")
     async def warn(ctx: commands.Context, alvo: str = None, *, motivo: str = None):
@@ -387,7 +387,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         await ctx.send(f"✅ Warn #{warn_id} removido.")
         embed_log = discord.Embed(title="🗑️ Warn removido", description=f"{ctx.author.mention} removeu o warn #{warn_id} de <@{warn_removido['user_id']}>.", color=discord.Color.red())
         embed_log.add_field(name="Motivo original", value=warn_removido["motivo"], inline=False)
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.command(name="warn_info")
     async def warn_info(ctx: commands.Context, warn_id: int = None):
@@ -518,13 +518,13 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
             embed_log.add_field(name="ID do usuário", value=str(interaction.user.id), inline=True)
             embed_log.add_field(name="Cargo mais alto", value=interaction.user.top_role.name, inline=True)
             embed_log.set_thumbnail(url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url)
-            await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             return
         embed = gerar_painel_inicial()
         await interaction.response.send_message(embed=embed, view=PainelView(cfg), ephemeral=True)
         embed_log = discord.Embed(title="📋 Painel aberto", description=f"{interaction.user.mention} abriu o painel de controle.", color=discord.Color.blurple())
         embed_log.add_field(name="ID do usuário", value=str(interaction.user.id), inline=True)
-        await registrar_log_painel(embed_log, webhook_logs_painel=cfg["webhook_logs_painel"])
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
 
     @bot.event
     async def on_command_error(ctx: commands.Context, error: commands.CommandError):

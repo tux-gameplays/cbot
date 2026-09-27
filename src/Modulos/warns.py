@@ -1,6 +1,7 @@
 import discord
 import json
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 
 DIAS_EXPIRACAO_WARN = 60
@@ -10,6 +11,12 @@ TEMPOS_TIMEOUT = {
     2: timedelta(hours=1),
     3: timedelta(days=1)
 }
+
+def _parse_dt(s: str) -> datetime:
+    dt = datetime.fromisoformat(s)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 def carregar_warns(arquivo: str):
     if not arquivo or not os.path.exists(arquivo):
@@ -66,7 +73,8 @@ async def criar_warn(user_id: int, autor_id: int, motivo: str, eterno: bool, bot
         if membro:
             agora_utc = datetime.now(timezone.utc).isoformat()
             info = dados["info_usuarios"].get(str(user_id), {})
-            tempo_desde = (datetime.now(timezone.utc) - datetime.fromisoformat(info.get("ultima_atualizacao_info", "1970-01-01T00:00:00+00:00"))).total_seconds()
+            ultima_str = info.get("ultima_atualizacao_info", "1970-01-01T00:00:00+00:00")
+            tempo_desde = (datetime.now(timezone.utc) - _parse_dt(ultima_str)).total_seconds()
             if tempo_desde >= 3600 or "apelido" not in info:
                 dados["info_usuarios"][str(user_id)] = {
                     "apelido": membro.display_name,
@@ -95,7 +103,11 @@ def checar_warns_expirados(arquivo: str, fuso_brt):
 
     for warn in dados["warns"].values():
         if warn.get("status") == "ativo" and warn.get("expira_em"):
-            if datetime.fromisoformat(warn["expira_em"]) <= agora:
+            expira = _parse_dt(warn["expira_em"])
+            if expira.tzinfo is None:
+                expira = expira.replace(tzinfo=timezone.utc)
+            agora_cmp = agora if agora.tzinfo else agora.replace(tzinfo=timezone.utc)
+            if expira <= agora_cmp:
                 warn["status"] = "expirado"
                 expirados.append(warn)
 
@@ -106,7 +118,7 @@ def checar_warns_expirados(arquivo: str, fuso_brt):
 
 async def aplicar_punicao_progressao(guild: discord.Guild, user_id: int, quantidade_ativos: int,
                                       bot, guild_id: int, vip_role_id: int, amigos_role_id: int,
-                                      arquivo_vips: str, arquivo_amigos: str, fuso_brt, webhook_logs: str):
+                                      arquivo_vips: str, arquivo_amigos: str, fuso_brt, cfg: dict = None):
     from Modulos.vip import remover_vip
     from Modulos.amigos import remover_amigo
 
@@ -126,13 +138,13 @@ async def aplicar_punicao_progressao(guild: discord.Guild, user_id: int, quantid
             return f"Timeout de {TEMPOS_TIMEOUT[quantidade_ativos]} aplicado a {membro.mention}."
 
         elif quantidade_ativos == 4:
-            await remover_vip(user_id, bot, guild_id, vip_role_id, arquivo_vips, webhook_logs)
-            await remover_amigo(user_id, bot, guild_id, amigos_role_id, arquivo_amigos, webhook_logs)
-            await membro.kick(reason="4º warn - remoção de cargos e kick automático")
+            await remover_vip(user_id, bot, guild_id, vip_role_id, arquivo_vips)
+            await remover_amigo(user_id, bot, guild_id, amigos_role_id, arquivo_amigos)
+            await membro.kick(reason="4º warn — remoção de cargos e kick automático")
             return f"{membro.mention} perdeu VIP, Amigos e foi expulso do servidor (4º warn)."
 
         elif quantidade_ativos >= 5:
-            await guild.ban(membro, reason="5º warn - ban automático")
+            await guild.ban(membro, reason="5º warn — ban automático")
             return f"{membro.mention} foi banido permanentemente (5º warn)."
 
     except Exception as e:

@@ -2,6 +2,7 @@ import discord
 import json
 import os
 import re
+import logging
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
@@ -11,11 +12,11 @@ _historico_msgs = defaultdict(list)
 _historico_msgs_conteudo = defaultdict(list)
 
 DOMINIOS_DIVULGACAO = [
-    r"discord\.gg/",
-    r"discord\.com/invite/",
-    r"discordapp\.com/invite/",
-    r"t\.me/",
-    r"chat\.whatsapp\.com/"
+    r"discord\.gg/\S+",
+    r"discord\.com/invite/\S+",
+    r"discordapp\.com/invite/\S+",
+    r"t\.me/\S+",
+    r"chat\.whatsapp\.com/\S+",
 ]
 
 DOMINIOS_LINKS_PERMITIDOS = [
@@ -55,11 +56,15 @@ def checar_segundo_aviso(user_id: int, tipo: str, arquivo: str) -> bool:
     avisos = dados.get("avisos", {}).get(user_str, {})
     if tipo not in avisos:
         return False
-    ultimo = datetime.fromisoformat(avisos[tipo])
+    ultimo_str = avisos[tipo]
+    ultimo = datetime.fromisoformat(ultimo_str)
+    if ultimo.tzinfo is None:
+        ultimo = ultimo.replace(tzinfo=timezone.utc)
     agora = datetime.now(timezone.utc)
     return (agora - ultimo).total_seconds() <= JANELA_AVISO_SEGUNDOS
 
 def eh_imune(membro: discord.Member, admin_role_id: int) -> bool:
+    # Imune apenas se ACIMA de administrador (não inclui o próprio cargo)
     admin_role = membro.guild.get_role(admin_role_id)
     if admin_role is None:
         return False
@@ -72,9 +77,12 @@ def detectar_divulgacao(conteudo: str) -> bool:
     return False
 
 def detectar_link_bloqueado(conteudo: str) -> bool:
-    url_padrao = re.compile(r"https?://[^\s]+|www\.[^\s]+", re.IGNORECASE)
+    url_padrao = re.compile(r"https?://[^\s<>]+|www\.[^\s<>]+", re.IGNORECASE)
     urls = url_padrao.findall(conteudo)
     for url in urls:
+        # Ignora URLs de divulgação — já tratadas antes
+        if detectar_divulgacao(url):
+            continue
         permitido = any(re.search(d, url, re.IGNORECASE) for d in DOMINIOS_LINKS_PERMITIDOS)
         if not permitido:
             return True
@@ -133,14 +141,39 @@ async def log_moderacao(message: discord.Message, tipo: str, cfg: dict):
     embed.add_field(name="Usuário", value=f"{message.author.mention} (`{message.author.name}`)", inline=True)
     embed.add_field(name="Canal", value=message.channel.mention, inline=True)
     conteudo_curto = message.content[:500] + ("..." if len(message.content) > 500 else "")
-    embed.add_field(name="Conteúdo", value=f"```{conteudo_curto}```", inline=False)
+    if conteudo_curto:
+        embed.add_field(name="Conteúdo", value=f"```{conteudo_curto}```", inline=False)
     embed.timestamp = datetime.now(timezone.utc)
     embed.set_footer(text=f"ID: {message.author.id}")
 
     await canal.send(embed=embed)
 
+async def _aplicar_ou_avisar(message: discord.Message, tipo: str, aviso_texto: str, warn_texto: str, cfg: dict):
+    arquivo = cfg["arquivo_moderacao"]
+    user_id = message.author.id
+    segundo = checar_segundo_aviso(user_id, tipo, arquivo)
+
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    if segundo:
+        from Modulos.warns import criar_warn
+        await criar_warn(user_id, message.guild.me.id, warn_texto, False,
+                         cfg["bot"], cfg["guild_id"], cfg["arquivo_warns"], cfg["fuso_brt"])
+        await enviar_aviso_canal(message.channel, message.author,
+                                 f"⚠️ {warn_texto}. Warn aplicado automaticamente.")
+    else:
+        registrar_aviso(user_id, tipo, arquivo)
+        await enviar_aviso_canal(message.channel, message.author, f"🚫 {aviso_texto}")
+
+    await log_moderacao(message, tipo, cfg)
+
 async def processar_moderacao(message: discord.Message, cfg: dict) -> bool:
     if not isinstance(message.author, discord.Member):
+        return False
+    if message.guild.id != cfg["guild_id"]:
         return False
     if eh_imune(message.author, cfg["admin_role_id"]):
         return False
@@ -148,71 +181,32 @@ async def processar_moderacao(message: discord.Message, cfg: dict) -> bool:
         return False
 
     conteudo = message.content
-    user_id = message.author.id
-    arquivo = cfg["arquivo_moderacao"]
 
     if detectar_divulgacao(conteudo):
-        segundo = checar_segundo_aviso(user_id, "divulgacao", arquivo)
-        try:
-            await message.delete()
-        except Exception:
-            pass
-        if segundo:
-            from Modulos.warns import criar_warn
-            await criar_warn(user_id, message.guild.me.id, "Divulgação de servidor (automático)", False,
-                             cfg["bot"], cfg["guild_id"], cfg["arquivo_warns"], cfg["fuso_brt"])
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "⚠️ Divulgação não é permitida. Warn aplicado automaticamente.")
-        else:
-            registrar_aviso(user_id, "divulgacao", arquivo)
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "🚫 Divulgação de outros servidores não é permitida aqui.")
-        await log_moderacao(message, "divulgacao", cfg)
+        await _aplicar_ou_avisar(message, "divulgacao",
+                                  "Divulgação de outros servidores não é permitida aqui.",
+                                  "Divulgação de servidor", cfg)
         return True
 
     if detectar_link_bloqueado(conteudo):
-        segundo = checar_segundo_aviso(user_id, "link", arquivo)
-        try:
-            await message.delete()
-        except Exception:
-            pass
-        if segundo:
-            from Modulos.warns import criar_warn
-            await criar_warn(user_id, message.guild.me.id, "Link não permitido (automático)", False,
-                             cfg["bot"], cfg["guild_id"], cfg["arquivo_warns"], cfg["fuso_brt"])
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "⚠️ Links não são permitidos aqui. Warn aplicado automaticamente.")
-        else:
-            registrar_aviso(user_id, "link", arquivo)
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "🚫 Links não são permitidos aqui. Apenas YouTube e GIFs do Discord.")
-        await log_moderacao(message, "link", cfg)
+        await _aplicar_ou_avisar(message, "link",
+                                  "Links não são permitidos aqui. Apenas YouTube e GIFs do Discord.",
+                                  "Link não permitido", cfg)
         return True
 
-    tipo_flood = detectar_flood(user_id, conteudo)
+    tipo_flood = detectar_flood(message.author.id, conteudo)
     if tipo_flood:
-        segundo = checar_segundo_aviso(user_id, "flood", arquivo)
-        try:
-            await message.delete()
-        except Exception:
-            pass
-        if segundo:
-            from Modulos.warns import criar_warn
-            await criar_warn(user_id, message.guild.me.id, "Spam/flood (automático)", False,
-                             cfg["bot"], cfg["guild_id"], cfg["arquivo_warns"], cfg["fuso_brt"])
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "⚠️ Para de spammar. Warn aplicado automaticamente.")
-        else:
-            registrar_aviso(user_id, "flood", arquivo)
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "🚫 Não envie mensagens repetidas ou muito rápido.")
-        await log_moderacao(message, tipo_flood, cfg)
+        await _aplicar_ou_avisar(message, "flood",
+                                  "Não envie mensagens repetidas ou muito rápido.",
+                                  "Spam/flood", cfg)
         return True
 
     return False
 
 async def processar_comando_local_errado(message: discord.Message, cfg: dict) -> bool:
     if not isinstance(message.author, discord.Member):
+        return False
+    if message.guild.id != cfg["guild_id"]:
         return False
     if eh_imune(message.author, cfg["admin_role_id"]):
         return False
@@ -226,41 +220,15 @@ async def processar_comando_local_errado(message: discord.Message, cfg: dict) ->
 
     if message.channel.id in [canal_antecipado, canal_publico]:
         if not eh_cod:
-            segundo = checar_segundo_aviso(message.author.id, "comando_local", cfg["arquivo_moderacao"])
-            try:
-                await message.delete()
-            except Exception:
-                pass
-            if segundo:
-                from Modulos.warns import criar_warn
-                await criar_warn(message.author.id, message.guild.me.id, "Comando em local errado (automático)", False,
-                                 cfg["bot"], cfg["guild_id"], cfg["arquivo_warns"], cfg["fuso_brt"])
-                await enviar_aviso_canal(message.channel, message.author,
-                                         "⚠️ Apenas `c+cod` é permitido aqui. Warn aplicado.")
-            else:
-                registrar_aviso(message.author.id, "comando_local", cfg["arquivo_moderacao"])
-                await enviar_aviso_canal(message.channel, message.author,
-                                         f"🚫 Apenas `c+cod` é permitido neste canal. Use <#{canal_comandos}> para outros comandos.")
-            await log_moderacao(message, "comando_local", cfg)
+            await _aplicar_ou_avisar(message, "comando_local",
+                                      f"Apenas `c+cod` é permitido neste canal. Use <#{canal_comandos}> para outros comandos.",
+                                      "Comando em local errado", cfg)
             return True
 
     elif message.channel.id != canal_comandos:
-        segundo = checar_segundo_aviso(message.author.id, "comando_local", cfg["arquivo_moderacao"])
-        try:
-            await message.delete()
-        except Exception:
-            pass
-        if segundo:
-            from Modulos.warns import criar_warn
-            await criar_warn(message.author.id, message.guild.me.id, "Comando em local errado (automático)", False,
-                             cfg["bot"], cfg["guild_id"], cfg["arquivo_warns"], cfg["fuso_brt"])
-            await enviar_aviso_canal(message.channel, message.author,
-                                     "⚠️ Comandos não são permitidos aqui. Warn aplicado.")
-        else:
-            registrar_aviso(message.author.id, "comando_local", cfg["arquivo_moderacao"])
-            await enviar_aviso_canal(message.channel, message.author,
-                                     f"🚫 Comandos só podem ser usados em <#{canal_comandos}>.")
-        await log_moderacao(message, "comando_local", cfg)
+        await _aplicar_ou_avisar(message, "comando_local",
+                                  f"Comandos só podem ser usados em <#{canal_comandos}>.",
+                                  "Comando em local errado", cfg)
         return True
 
     return False
