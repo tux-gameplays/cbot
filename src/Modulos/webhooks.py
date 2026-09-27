@@ -68,28 +68,41 @@ def montar_embed_log(texto: str, tipo: str) -> discord.Embed:
     embed.timestamp = datetime.now(timezone.utc)
     return embed
 
-async def registrar_log_normal(texto: str, tipo: str = "info", webhook_logs: str = None):
-    logging.info(texto)
-    if webhook_logs:
-        try:
-            await enviar_webhook(webhook_logs, embed=montar_embed_log(texto, tipo))
-        except Exception as e:
-            logging.error(f"Erro ao enviar log geral via webhook: {e}")
+async def registrar_log_canal(bot, canal_id, embed: discord.Embed):
+    if not canal_id:
+        return
+    try:
+        canal = bot.get_channel(int(canal_id))
+        if canal:
+            await canal.send(embed=embed)
+    except Exception as e:
+        logging.error(f"Erro ao enviar log no canal {canal_id}: {e}")
 
-async def registrar_log_codigo(texto: str, tipo: str = "info", webhook_logs_codigos: str = None):
+async def registrar_log_normal(texto: str, tipo: str = "info", bot=None, canal_id=None):
     logging.info(texto)
-    if webhook_logs_codigos:
-        try:
-            await enviar_webhook(webhook_logs_codigos, embed=montar_embed_log(texto, tipo))
-        except Exception as e:
-            logging.error(f"Erro ao enviar log de código via webhook: {e}")
+    if bot and canal_id:
+        await registrar_log_canal(bot, canal_id, montar_embed_log(texto, tipo))
 
-async def registrar_log_painel(embed: discord.Embed, webhook_logs_painel: str = None):
-    if webhook_logs_painel:
-        try:
-            await enviar_webhook(webhook_logs_painel, embed=embed)
-        except Exception as e:
-            logging.error(f"Erro ao enviar log do painel via webhook: {e}")
+async def registrar_log_codigo(texto: str, tipo: str = "info", bot=None, canal_id=None):
+    logging.info(texto)
+    if bot and canal_id:
+        await registrar_log_canal(bot, canal_id, montar_embed_log(texto, tipo))
+
+async def registrar_log_painel(embed: discord.Embed, bot=None, canal_id=None):
+    if bot and canal_id:
+        await registrar_log_canal(bot, canal_id, embed)
+
+async def registrar_log_vip(embed: discord.Embed, bot=None, canal_id=None):
+    if bot and canal_id:
+        await registrar_log_canal(bot, canal_id, embed)
+
+async def registrar_log_amigos(embed: discord.Embed, bot=None, canal_id=None):
+    if bot and canal_id:
+        await registrar_log_canal(bot, canal_id, embed)
+
+async def registrar_log_punicoes(embed: discord.Embed, bot=None, canal_id=None):
+    if bot and canal_id:
+        await registrar_log_canal(bot, canal_id, embed)
 
 async def enviar_ou_editar(destino, embed: discord.Embed, view: discord.ui.View):
     if isinstance(destino, discord.Interaction):

@@ -15,10 +15,7 @@ logging.getLogger("discord.gateway").setLevel(logging.WARNING)
 logging.getLogger("discord.client").setLevel(logging.WARNING)
 logging.getLogger("discord.voice").setLevel(logging.CRITICAL)
 
-intents = discord.Intents.default()
-intents.message_content = True
-intents.guilds = True
-intents.members = True
+intents = discord.Intents.all()
 
 bot = commands.Bot(command_prefix="c+", intents=intents)
 bot.help_command = None
@@ -29,73 +26,95 @@ FUSO_BRT = timezone(timedelta(hours=-3))
 
 # ---------- Variáveis ----------
 
-# Dev
 TOKEN = os.getenv("TOKEN")
 SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
 CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
 SEU_GUILD_ID = int(os.getenv("SERVIDOR"))
 
-# Canais
 CODIGO_ANTECIPADO = int(os.getenv("CODIGO_ANTECIPADO", 0))
 CODIGO_PUBLICO = int(os.getenv("CODIGO_PUBLICO", 0))
 CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
+CANAL_COMANDOS = int(os.getenv("CANAL_COMANDOS", 0))
+CANAL_ANUNCIO_LIVES = int(os.getenv("CANAL_ANUNCIO_LIVES", 0))
+CANAL_ANUNCIO_VIDEOS = int(os.getenv("CANAL_ANUNCIO_VIDEOS", 0))
 
-# Calls
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+YOUTUBE_CANAL_ID = os.getenv("YOUTUBE_CANAL_ID")
+
 CALL_LIVE = int(os.getenv("Call_Live"))
 CALL_RECONECTAR = int(os.getenv("Call_Reconectar"))
 
-# Webhooks
 WEBHOOK_CODIGOS = os.getenv("CODIGO_SALAS")
-WEBHOOK_LOGS = os.getenv("LOGS_GERAIS")
 WEBHOOK_ANTECIPADO = os.getenv("CODIGO_SALAS_ANTECIPADO")
-WEBHOOK_LOGS_CODIGOS = os.getenv("LOGS_CODIGOS")
 WEBHOOK_LEMBRETE_CHAT = os.getenv("LEMBRETE_CHAT")
-WEBHOOK_LOGS_PAINEL = os.getenv("LOGS_PAINEL")
-WEBHOOK_ENTRADA = os.getenv("ENTRADA")
-WEBHOOK_BANCO = os.getenv("BANCO")
 
-# Cargos
 ADMINISTRADOR = int(os.getenv("Administrador"))
 VIP = int(os.getenv("Vip"))
-AMIGOS = int(os.getenv("Amigos"))
-ROLE_PING_LEMBRETE = os.getenv("PING_LEMBRETE", "")
+AMIGOS_ROLE = int(os.getenv("Amigos"))
 
-# Pessoas
+PING_LEMBRETE = os.getenv("PING_LEMBRETE", "")
+PING_LIVE_PROGRAMADA = os.getenv("PING_LIVE_PROGRAMADA", "")
+PING_LIVE_AO_VIVO = os.getenv("PING_LIVE_AO_VIVO", "")
+PING_VIDEO_NOVO = os.getenv("PING_VIDEO_NOVO", "")
+PING_SHORTS_NOVO = os.getenv("PING_SHORTS_NOVO", "")
+ROLE_PING_LEMBRETE = f"<@&{PING_LEMBRETE}>" if PING_LEMBRETE else ""
+
 BOT_BANCO_ID = int(os.getenv("BOT_BANCO_ID", 0))
 DONO_BOT = int(os.getenv("DONO_BOT", 0))
 CHIP = int(os.getenv("CHIP", 0))
 
-# Memória
 ARQUIVO_VIPS = os.getenv("ARQUIVO_VIPS")
 ARQUIVO_AMIGOS = os.getenv("ARQUIVO_AMIGOS")
 ARQUIVO_WARNS = os.getenv("ARQUIVO_WARNS")
 ARQUIVO_TIMERS = os.getenv("ARQUIVO_TIMERS")
 ARQUIVO_BANCO_AV = os.getenv("ARQUIVO_AV_BANCO")
+ARQUIVO_MODERACAO = os.getenv("ARQUIVO_MODERACAO")
+ARQUIVO_YOUTUBE = os.getenv("ARQUIVO_YOUTUBE")
 
-# Pastas
 PASTA_BACKUP = os.getenv("PASTA_BACKUP")
-if not PASTA_BACKUP and ARQUIVO_VIPS:
-    PASTA_BACKUP = os.path.join(os.path.dirname(ARQUIVO_VIPS), "Backups")
-
 PASTA_SRC = os.getenv("PASTA_SRC")
 PASTA_MEMORIAS = os.getenv("PASTA_MEMORIAS")
 PASTA_BOT_RAIZ = "/home/rpyt51/Documentos/Bots/Bot Chip"
 
-# ---------- Config compartilhada entre módulos ----------
+LOGS_GERAIS = os.getenv("LOGS_GERAIS")
+LOGS_CODIGOS = os.getenv("LOGS_CODIGOS")
+LOGS_PAINEL = os.getenv("LOGS_PAINEL")
+LOGS_VIP = os.getenv("LOGS_VIP")
+LOGS_AMIGOS = os.getenv("LOGS_AMIGOS")
+LOGS_PUNICOES = os.getenv("LOGS_PUNICOES")
+LOGS_MODERACAO = os.getenv("LOGS_MODERACAO")
+LOGS_MEMBROS = os.getenv("LOGS_MEMBROS")
+LOGS_MENSAGENS = os.getenv("LOGS_MENSAGENS")
+LOGS_CALLS = os.getenv("LOGS_CALLS")
+LOGS_SERVIDOR = os.getenv("LOGS_SERVIDOR")
+LOGS_CANAIS = os.getenv("LOGS_CANAIS")
+LOGS_CARGOS = os.getenv("LOGS_CARGOS")
+
+# ---------- CFG ----------
 
 CFG = {
     "bot": bot,
     "guild_id": SEU_GUILD_ID,
     "admin_role_id": ADMINISTRADOR,
     "vip_role_id": VIP,
-    "amigos_role_id": AMIGOS,
+    "amigos_role_id": AMIGOS_ROLE,
     "call_live": CALL_LIVE,
     "call_reconectar": CALL_RECONECTAR,
+    "canal_comandos": CANAL_COMANDOS,
+    "codigo_antecipado": CODIGO_ANTECIPADO,
+    "codigo_publico": CODIGO_PUBLICO,
+    "canal_banco": CANAL_BANCO,
+    "canal_anuncio_lives": CANAL_ANUNCIO_LIVES,
+    "canal_anuncio_videos": CANAL_ANUNCIO_VIDEOS,
+    "youtube_api_key": YOUTUBE_API_KEY,
+    "youtube_canal_id": YOUTUBE_CANAL_ID,
     "arquivo_vips": ARQUIVO_VIPS,
     "arquivo_amigos": ARQUIVO_AMIGOS,
     "arquivo_warns": ARQUIVO_WARNS,
     "arquivo_timers": ARQUIVO_TIMERS,
     "arquivo_banco_av": ARQUIVO_BANCO_AV,
+    "arquivo_moderacao": ARQUIVO_MODERACAO,
+    "arquivo_youtube": ARQUIVO_YOUTUBE,
     "pasta_backup": PASTA_BACKUP,
     "pasta_src": PASTA_SRC,
     "pasta_memorias": PASTA_MEMORIAS,
@@ -103,54 +122,79 @@ CFG = {
     "servidor_devs": SERVIDOR_DEVS,
     "cargo_devs": CARGO_DEVS,
     "webhook_codigos": WEBHOOK_CODIGOS,
-    "webhook_logs": WEBHOOK_LOGS,
     "webhook_antecipado": WEBHOOK_ANTECIPADO,
-    "webhook_logs_codigos": WEBHOOK_LOGS_CODIGOS,
     "webhook_lembrete_chat": WEBHOOK_LEMBRETE_CHAT,
-    "webhook_logs_painel": WEBHOOK_LOGS_PAINEL,
-    "webhook_entrada": WEBHOOK_ENTRADA,
-    "webhook_banco": WEBHOOK_BANCO,
     "role_ping_lembrete": ROLE_PING_LEMBRETE,
+    "ping_live_programada": PING_LIVE_PROGRAMADA,
+    "ping_live_ao_vivo": PING_LIVE_AO_VIVO,
+    "ping_video_novo": PING_VIDEO_NOVO,
+    "ping_shorts_novo": PING_SHORTS_NOVO,
     "fuso_brt": FUSO_BRT,
     "hora_inicio": None,
+    "logs_gerais": LOGS_GERAIS,
+    "logs_codigos": LOGS_CODIGOS,
+    "logs_painel": LOGS_PAINEL,
+    "logs_vip": LOGS_VIP,
+    "logs_amigos": LOGS_AMIGOS,
+    "logs_punicoes": LOGS_PUNICOES,
+    "logs_moderacao": LOGS_MODERACAO,
+    "logs_membros": LOGS_MEMBROS,
+    "logs_mensagens": LOGS_MENSAGENS,
+    "logs_calls": LOGS_CALLS,
+    "logs_servidor": LOGS_SERVIDOR,
+    "logs_canais": LOGS_CANAIS,
+    "logs_cargos": LOGS_CARGOS,
 }
 
-# ---------- Importa módulos ----------
+# ---------- Imports ----------
 
-from Modulos.webhooks import registrar_log_normal, registrar_log_codigo, registrar_log_painel, enviar_webhook, apagar_webhook_msg
+from Modulos.webhooks import (registrar_log_normal, registrar_log_codigo, registrar_log_painel,
+                               registrar_log_vip, registrar_log_amigos, registrar_log_punicoes,
+                               enviar_webhook, apagar_webhook_msg)
 from Modulos.vip import checar_vips_expirados
 from Modulos.warns import checar_warns_expirados
 from Modulos.codigos import retomar_timers_pendentes, agendar_job
 from Modulos.banco import retomar_msgs_banco, processar_msg_banco
 from Modulos.backup import backup_automatico, git_auto_commit
+from Modulos.logs import (log_entrada_membro, log_saida_membro, log_cargo_alterado,
+                           log_mensagem_apagada, log_mensagem_editada, processar_log_call,
+                           log_punicao_externa, log_servidor_atualizado,
+                           log_canal_criado, log_canal_deletado, log_canal_atualizado,
+                           log_cargo_criado, log_cargo_deletado, log_cargo_atualizado)
+from Modulos.moderacao import processar_moderacao, processar_comando_local_errado
+from Modulos.youtube import checar_youtube
 from Modulos.comandos import registrar_comandos
 
 registrar_comandos(bot, CFG)
 
-# ---------- Loop de verificação ----------
+# ---------- Loops ----------
 
 @tasks.loop(minutes=5)
 async def loop_verificar_vips():
-    expirados = await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT, WEBHOOK_LOGS)
+    expirados = await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT, None)
     if expirados:
-        await registrar_log_normal("Um ou mais VIPs expiraram e foram desativados automaticamente.", tipo="neutro", webhook_logs=WEBHOOK_LOGS)
-        embed_log = discord.Embed(
+        embed = discord.Embed(
             title="⌛ VIPs expirados automaticamente",
             description="\n".join(f"<@{uid}>" for uid in expirados),
             color=discord.Color.dark_grey()
         )
-        await registrar_log_painel(embed_log, webhook_logs_painel=WEBHOOK_LOGS_PAINEL)
+        await registrar_log_vip(embed, bot=bot, canal_id=LOGS_VIP)
 
     warns_expirados = checar_warns_expirados(ARQUIVO_WARNS, FUSO_BRT)
     if warns_expirados:
-        embed_log_warns = discord.Embed(
+        embed_warns = discord.Embed(
             title="⌛ Warns expirados automaticamente",
             description="\n".join(f"#{w['id']} — <@{w['user_id']}>" for w in warns_expirados),
             color=discord.Color.dark_grey()
         )
-        await registrar_log_painel(embed_log_warns, webhook_logs_painel=WEBHOOK_LOGS_PAINEL)
+        await registrar_log_punicoes(embed_warns, bot=bot, canal_id=LOGS_PUNICOES)
 
-# ---------- Eventos ----------
+@tasks.loop(minutes=10)
+async def loop_youtube():
+    if YOUTUBE_API_KEY and YOUTUBE_CANAL_ID:
+        await checar_youtube(CFG)
+
+# ---------- on_ready ----------
 
 @bot.event
 async def on_ready():
@@ -158,7 +202,7 @@ async def on_ready():
     HORA_INICIO = datetime.now(timezone.utc)
     CFG["hora_inicio"] = HORA_INICIO
 
-    await registrar_log_normal(f"Bot logado como {bot.user}", tipo="sucesso", webhook_logs=WEBHOOK_LOGS)
+    logging.info(f"Bot logado como {bot.user}")
     try:
         guild = discord.Object(id=SEU_GUILD_ID)
         synced = await bot.tree.sync(guild=guild)
@@ -166,18 +210,22 @@ async def on_ready():
     except Exception as e:
         logging.error(f"Erro ao sincronizar comandos slash: {e}")
 
-    await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT, WEBHOOK_LOGS)
+    await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT, None)
+
     if not loop_verificar_vips.is_running():
         loop_verificar_vips.start()
 
-    retomar_timers_pendentes(bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
-                             WEBHOOK_LEMBRETE_CHAT, WEBHOOK_LOGS, WEBHOOK_LOGS_CODIGOS, ROLE_PING_LEMBRETE)
-    await retomar_msgs_banco(bot, CANAL_BANCO, BOT_BANCO_ID, SEU_GUILD_ID, VIP, ARQUIVO_VIPS,
-                             ARQUIVO_BANCO_AV, FUSO_BRT, WEBHOOK_BANCO, WEBHOOK_LOGS, WEBHOOK_LOGS_PAINEL)
-    await backup_automatico(PASTA_BACKUP, PASTA_SRC, PASTA_MEMORIAS, FUSO_BRT, WEBHOOK_LOGS)
+    if YOUTUBE_API_KEY and YOUTUBE_CANAL_ID and not loop_youtube.is_running():
+        loop_youtube.start()
 
-    if ROLE_PING_LEMBRETE and ROLE_PING_LEMBRETE.startswith("<@&"):
-        match = re.search(r"<@&(\d+)>", ROLE_PING_LEMBRETE)
+    retomar_timers_pendentes(bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
+                             WEBHOOK_LEMBRETE_CHAT, None, None, ROLE_PING_LEMBRETE)
+    await retomar_msgs_banco(bot, CANAL_BANCO, BOT_BANCO_ID, SEU_GUILD_ID, VIP, ARQUIVO_VIPS,
+                             ARQUIVO_BANCO_AV, FUSO_BRT, None, None, None)
+    await backup_automatico(PASTA_BACKUP, PASTA_SRC, PASTA_MEMORIAS, FUSO_BRT, None)
+
+    if PING_LEMBRETE:
+        match = re.search(r"(\d+)", PING_LEMBRETE)
         if match:
             role_id = int(match.group(1))
             guild_obj = bot.get_guild(SEU_GUILD_ID)
@@ -186,8 +234,12 @@ async def on_ready():
                 if role:
                     logging.info(f"🏷️ Role ping lembrete: {role.name} (ID: {role_id})")
 
-    await git_auto_commit(PASTA_BOT_RAIZ, WEBHOOK_LOGS)
+    await git_auto_commit(PASTA_BOT_RAIZ, None)
     await preencher_info_usuarios()
+
+    await registrar_log_normal(f"✅ Bot online: {bot.user}", tipo="sucesso", bot=bot, canal_id=LOGS_GERAIS)
+
+# ---------- Funções auxiliares ----------
 
 async def preencher_info_usuarios():
     from Modulos.vip import carregar_vips, salvar_vips, atualizar_info_usuario
@@ -249,23 +301,7 @@ async def preencher_info_usuarios():
     if atualizados > 0:
         logging.info(f"👤 Info de {atualizados} usuário(s) preenchida(s) nos JSONs")
 
-@bot.event
-async def on_member_remove(member: discord.Member):
-    from Modulos.vip import carregar_vips, salvar_vips, consultar_vip
-    if member.guild.id != SEU_GUILD_ID:
-        return
-    dados_vip = consultar_vip(member.id, ARQUIVO_VIPS)
-    if dados_vip.get("vip"):
-        dados = carregar_vips(ARQUIVO_VIPS)
-        usuarios = dados.get("usuarios", {})
-        usuarios[str(member.id)]["vip"] = False
-        usuarios[str(member.id)]["expira_em"] = None
-        usuarios[str(member.id)]["eterno"] = False
-        dados["usuarios"] = usuarios
-        salvar_vips(dados, ARQUIVO_VIPS)
-        embed_log = discord.Embed(title="💎 VIP perdido (saiu do servidor)", description=f"{member.mention} saiu do servidor e perdeu o VIP definitivamente.", color=discord.Color.red())
-        embed_log.add_field(name="ID do usuário", value=str(member.id), inline=True)
-        await registrar_log_painel(embed_log, webhook_logs_painel=WEBHOOK_LOGS_PAINEL)
+# ---------- Eventos ----------
 
 @bot.event
 async def on_member_join(member: discord.Member):
@@ -274,17 +310,106 @@ async def on_member_join(member: discord.Member):
         return
     dados_amigo = consultar_amigo(member.id, ARQUIVO_AMIGOS)
     if dados_amigo.get("amigo"):
-        await atribuir_cargo_amigo(member.id, bot, SEU_GUILD_ID, AMIGOS, WEBHOOK_LOGS)
-        embed_log = discord.Embed(title="👥 Cargo de Amigo restaurado", description=f"{member.mention} voltou ao servidor e o cargo de Amigo foi restaurado automaticamente.", color=discord.Color.teal())
-        embed_log.add_field(name="ID do usuário", value=str(member.id), inline=True)
-        await registrar_log_painel(embed_log, webhook_logs_painel=WEBHOOK_LOGS_PAINEL)
-    if WEBHOOK_ENTRADA:
-        try:
-            msg_entrada = await enviar_webhook(WEBHOOK_ENTRADA, conteudo=f"Clique aqui {member.display_name} 👋 {member.mention}", wait=True)
-            await asyncio.sleep(10)
-            await apagar_webhook_msg(WEBHOOK_ENTRADA, msg_entrada.id)
-        except Exception as e:
-            await registrar_log_normal(f"Erro ao enviar ping de entrada para {member.id}: {e}", tipo="erro", webhook_logs=WEBHOOK_LOGS)
+        await atribuir_cargo_amigo(member.id, bot, SEU_GUILD_ID, AMIGOS_ROLE, None)
+    await log_entrada_membro(member, CFG)
+
+@bot.event
+async def on_member_remove(member: discord.Member):
+    from Modulos.vip import carregar_vips, salvar_vips, consultar_vip
+    if member.guild.id != SEU_GUILD_ID:
+        return
+
+    dados_vip = consultar_vip(member.id, ARQUIVO_VIPS)
+    if dados_vip.get("vip"):
+        dados = carregar_vips(ARQUIVO_VIPS)
+        uid = str(member.id)
+        dados["usuarios"][uid]["vip"] = False
+        dados["usuarios"][uid]["expira_em"] = None
+        dados["usuarios"][uid]["eterno"] = False
+        salvar_vips(dados, ARQUIVO_VIPS)
+        embed = discord.Embed(
+            title="💎 VIP perdido (saiu do servidor)",
+            description=f"{member.mention} saiu do servidor e perdeu o VIP definitivamente.",
+            color=discord.Color.red()
+        )
+        embed.add_field(name="ID", value=str(member.id), inline=True)
+        await registrar_log_vip(embed, bot=bot, canal_id=LOGS_VIP)
+
+    await log_saida_membro(member, CFG)
+
+@bot.event
+async def on_member_update(antes: discord.Member, depois: discord.Member):
+    if antes.guild.id != SEU_GUILD_ID:
+        return
+    await log_cargo_alterado(depois, antes, CFG)
+
+@bot.event
+async def on_message_delete(message: discord.Message):
+    if not message.guild or message.guild.id != SEU_GUILD_ID:
+        return
+    if message.author == bot.user:
+        return
+    await log_mensagem_apagada(message, CFG)
+
+@bot.event
+async def on_message_edit(antes: discord.Message, depois: discord.Message):
+    if not antes.guild or antes.guild.id != SEU_GUILD_ID:
+        return
+    await log_mensagem_editada(antes, depois, CFG)
+
+@bot.event
+async def on_voice_state_update(member: discord.Member, antes: discord.VoiceState, depois: discord.VoiceState):
+    if member.guild.id != SEU_GUILD_ID:
+        return
+    await processar_log_call(antes, depois, member, CFG)
+
+@bot.event
+async def on_guild_update(antes: discord.Guild, depois: discord.Guild):
+    if depois.id != SEU_GUILD_ID:
+        return
+    await log_servidor_atualizado(antes, depois, CFG)
+
+@bot.event
+async def on_guild_channel_create(canal: discord.abc.GuildChannel):
+    if canal.guild.id != SEU_GUILD_ID:
+        return
+    await log_canal_criado(canal, CFG)
+
+@bot.event
+async def on_guild_channel_delete(canal: discord.abc.GuildChannel):
+    if canal.guild.id != SEU_GUILD_ID:
+        return
+    await log_canal_deletado(canal, CFG)
+
+@bot.event
+async def on_guild_channel_update(antes: discord.abc.GuildChannel, depois: discord.abc.GuildChannel):
+    if depois.guild.id != SEU_GUILD_ID:
+        return
+    await log_canal_atualizado(antes, depois, CFG)
+
+@bot.event
+async def on_guild_role_create(cargo: discord.Role):
+    if cargo.guild.id != SEU_GUILD_ID:
+        return
+    await log_cargo_criado(cargo, CFG)
+
+@bot.event
+async def on_guild_role_delete(cargo: discord.Role):
+    if cargo.guild.id != SEU_GUILD_ID:
+        return
+    await log_cargo_deletado(cargo, CFG)
+
+@bot.event
+async def on_guild_role_update(antes: discord.Role, depois: discord.Role):
+    if depois.guild.id != SEU_GUILD_ID:
+        return
+    await log_cargo_atualizado(antes, depois, CFG)
+
+@bot.event
+async def on_guild_audit_log_entry_create(entry: discord.AuditLogEntry):
+    if entry.guild.id != SEU_GUILD_ID:
+        return
+    await log_punicao_externa(entry, CFG)
 
 @bot.event
 async def on_message(message: discord.Message):
@@ -294,6 +419,15 @@ async def on_message(message: discord.Message):
 
     if message.author.bot and message.author != bot.user and not eh_bot_banco:
         return
+
+    if not message.author.bot:
+        bloqueado = await processar_comando_local_errado(message, CFG)
+        if bloqueado:
+            return
+
+        bloqueado = await processar_moderacao(message, CFG)
+        if bloqueado:
+            return
 
     if message.channel.id == CODIGO_ANTECIPADO:
         if ULTIMO_CODIGO_EM is not None:
@@ -321,9 +455,9 @@ async def on_message(message: discord.Message):
                 antecipado_msg = await enviar_webhook(WEBHOOK_ANTECIPADO, embed=embed, username=f"Sala do {message.author.display_name}", wait=True)
                 antecipado_id = antecipado_msg.id
                 ULTIMO_CODIGO_EM = datetime.now(timezone.utc)
-                await registrar_log_codigo(f"Mensagem reenviada no antecipado: {conteudo}", tipo="info", webhook_logs_codigos=WEBHOOK_LOGS_CODIGOS)
+                await registrar_log_codigo(f"Mensagem reenviada no antecipado: {conteudo}", tipo="info", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao reenviar mensagem antecipada: {e}", tipo="erro", webhook_logs=WEBHOOK_LOGS)
+                await registrar_log_normal(f"Erro ao reenviar mensagem antecipada: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
                 return
 
             agora = datetime.now(FUSO_BRT)
@@ -341,13 +475,13 @@ async def on_message(message: discord.Message):
                 (f"antecipado_expira:{antecipado_id}", {**info_base, "tipo": "antecipado_expira", "disparar_em": (agora + timedelta(seconds=600)).isoformat()})
             ]:
                 agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
-                            WEBHOOK_LEMBRETE_CHAT, WEBHOOK_LOGS, WEBHOOK_LOGS_CODIGOS, ROLE_PING_LEMBRETE)
+                            WEBHOOK_LEMBRETE_CHAT, None, None, ROLE_PING_LEMBRETE)
         else:
             try:
                 await message.delete()
-                await registrar_log_codigo(f"Mensagem inválida apagada no antecipado: {message.content}", tipo="aviso", webhook_logs_codigos=WEBHOOK_LOGS_CODIGOS)
+                await registrar_log_codigo(f"Mensagem inválida apagada no antecipado: {message.content}", tipo="aviso", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao apagar mensagem inválida: {e}", tipo="erro", webhook_logs=WEBHOOK_LOGS)
+                await registrar_log_normal(f"Erro ao apagar mensagem inválida: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
 
     elif message.channel.id == CODIGO_PUBLICO:
         if len(message.content) == 6 and " " not in message.content and message.content.isupper():
@@ -363,9 +497,9 @@ async def on_message(message: discord.Message):
             try:
                 await message.delete()
                 publico_msg = await enviar_webhook(WEBHOOK_CODIGOS, embed=embed, username=f"Sala do {message.author.display_name}", wait=True)
-                await registrar_log_codigo(f"Mensagem enviada direto ao público: {conteudo}", tipo="sucesso", webhook_logs_codigos=WEBHOOK_LOGS_CODIGOS)
+                await registrar_log_codigo(f"Mensagem enviada direto ao público: {conteudo}", tipo="sucesso", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao reenviar mensagem direta no público: {e}", tipo="erro", webhook_logs=WEBHOOK_LOGS)
+                await registrar_log_normal(f"Erro ao reenviar mensagem direta no público: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
                 return
 
             agora = datetime.now(FUSO_BRT)
@@ -374,17 +508,17 @@ async def on_message(message: discord.Message):
                 (f"lembrete:{publico_msg.id}", {"tipo": "lembrete", "conteudo": conteudo, "disparar_em": (agora + timedelta(seconds=15)).isoformat()})
             ]:
                 agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
-                            WEBHOOK_LEMBRETE_CHAT, WEBHOOK_LOGS, WEBHOOK_LOGS_CODIGOS, ROLE_PING_LEMBRETE)
+                            WEBHOOK_LEMBRETE_CHAT, None, None, ROLE_PING_LEMBRETE)
         else:
             try:
                 await message.delete()
-                await registrar_log_codigo(f"Mensagem inválida apagada no público: {message.content}", tipo="aviso", webhook_logs_codigos=WEBHOOK_LOGS_CODIGOS)
+                await registrar_log_codigo(f"Mensagem inválida apagada no público: {message.content}", tipo="aviso", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao apagar mensagem inválida: {e}", tipo="erro", webhook_logs=WEBHOOK_LOGS)
+                await registrar_log_normal(f"Erro ao apagar mensagem inválida: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
 
     elif message.channel.id == CANAL_BANCO and BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID:
         await processar_msg_banco(message, bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, ARQUIVO_BANCO_AV,
-                                  FUSO_BRT, WEBHOOK_BANCO, CANAL_BANCO, WEBHOOK_LOGS, WEBHOOK_LOGS_PAINEL)
+                                  FUSO_BRT, None, CANAL_BANCO, None, None)
 
     await bot.process_commands(message)
 
