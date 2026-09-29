@@ -91,7 +91,6 @@ LOGS_CALLS = os.getenv("LOGS_CALLS")
 LOGS_SERVIDOR = os.getenv("LOGS_SERVIDOR")
 LOGS_CANAIS = os.getenv("LOGS_CANAIS")
 LOGS_CARGOS = os.getenv("LOGS_CARGOS")
-webhook_banco = os.getenv("webhook_banco")
 
 # ---------- CFG ----------
 
@@ -231,7 +230,7 @@ async def on_ready():
                              WEBHOOK_ANTECIPADO, CODIGO_ANTECIPADO, CODIGO_PUBLICO, CODIGO_LEMBRETE,
                              LOGS_GERAIS, LOGS_CODIGOS, ROLE_PING_LEMBRETE)
     await retomar_msgs_banco(bot, CANAL_BANCO, BOT_BANCO_ID, SEU_GUILD_ID, VIP, ARQUIVO_VIPS,
-                             ARQUIVO_BANCO_AV, FUSO_BRT, webhook_banco)
+                             ARQUIVO_BANCO_AV, FUSO_BRT, CFG)
     await backup_automatico(PASTA_BACKUP, PASTA_SRC, PASTA_MEMORIAS, FUSO_BRT, None)
 
     if PING_LEMBRETE:
@@ -581,7 +580,7 @@ async def on_message(message: discord.Message):
 
     elif message.channel.id == CANAL_BANCO and BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID:
         await processar_msg_banco(message, bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, ARQUIVO_BANCO_AV,
-                                  FUSO_BRT, None, CANAL_BANCO, None, None)
+                                  FUSO_BRT, CFG)
 
     await bot.process_commands(message)
 

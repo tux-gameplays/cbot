@@ -2,7 +2,8 @@ import discord
 import json
 import os
 import re
-from Modulos.webhooks import enviar_webhook, registrar_log_normal, registrar_log_painel
+import logging
+from Modulos.webhooks import registrar_log_normal, registrar_log_painel
 
 def carregar_banco_state(arquivo: str):
     if not arquivo or not os.path.exists(arquivo):
@@ -20,9 +21,7 @@ def salvar_banco_state(msg_id: int, arquivo: str):
         json.dump({"ultima_msg_id": msg_id}, f)
 
 async def processar_msg_banco(message: discord.Message, bot, guild_id: int, vip_role_id: int,
-                               arquivo_vips: str, arquivo_banco_av: str, fuso_brt,
-                               webhook_banco: str, canal_banco_id: int,
-                               webhook_logs: str, webhook_logs_painel: str):
+                               arquivo_vips: str, arquivo_banco_av: str, fuso_brt, cfg: dict = None):
     from Modulos.vip import adicionar_vip
 
     if not message.embeds:
@@ -52,8 +51,11 @@ async def processar_msg_banco(message: discord.Message, bot, guild_id: int, vip_
         if match:
             user_id = int(match.group(1))
 
+    logs_vip = cfg.get("logs_vip") if cfg else None
+    logs_gerais = cfg.get("logs_gerais") if cfg else None
+
     if user_id:
-        await adicionar_vip(user_id, dias, bot, guild_id, vip_role_id, arquivo_vips, fuso_brt, webhook_logs)
+        await adicionar_vip(user_id, dias, bot, guild_id, vip_role_id, arquivo_vips, fuso_brt)
 
         label_tempo = "Eterno" if dias is None else f"{dias} dia(s)"
         embed_confirmacao = discord.Embed(
@@ -61,12 +63,9 @@ async def processar_msg_banco(message: discord.Message, bot, guild_id: int, vip_
             description=f"<@{user_id}>, seu VIP de **{label_tempo}** foi ativado automaticamente.",
             color=discord.Color.green()
         )
-        if webhook_banco:
-            await enviar_webhook(webhook_banco, conteudo=f"<@{user_id}>", embed=embed_confirmacao)
-        else:
-            canal = bot.get_channel(canal_banco_id)
-            if canal:
-                await canal.send(content=f"<@{user_id}>", embed=embed_confirmacao)
+        canal = bot.get_channel(message.channel.id)
+        if canal:
+            await canal.send(content=f"<@{user_id}>", embed=embed_confirmacao)
 
         embed_log = discord.Embed(
             title="💎 VIP adicionado automaticamente",
@@ -75,18 +74,18 @@ async def processar_msg_banco(message: discord.Message, bot, guild_id: int, vip_
         )
         embed_log.add_field(name="Tempo", value=label_tempo, inline=True)
         embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-        await registrar_log_painel(embed_log, bot=None, canal_id=None)
+        await registrar_log_painel(embed_log, bot=bot, canal_id=logs_vip)
     else:
         await registrar_log_normal(
-            "⚠️ VIP vendido no banco mas não foi possível identificar o comprador pelo embed.",
-            tipo="aviso", bot=None, canal_id=None
+            "⚠️ VIP vendido no banco mas não foi possível identificar o comprador.",
+            tipo="aviso", bot=bot, canal_id=logs_gerais
         )
 
     salvar_banco_state(message.id, arquivo_banco_av)
 
 async def retomar_msgs_banco(bot, canal_banco_id: int, bot_banco_id: int, guild_id: int,
                               vip_role_id: int, arquivo_vips: str, arquivo_banco_av: str,
-                              fuso_brt, webhook_banco: str, cfg: dict = None):
+                              fuso_brt, cfg: dict = None):
     if not canal_banco_id or not bot_banco_id:
         return
 
@@ -94,6 +93,7 @@ async def retomar_msgs_banco(bot, canal_banco_id: int, bot_banco_id: int, guild_
     if canal is None:
         return
 
+    logs_gerais = cfg.get("logs_gerais") if cfg else None
     state = carregar_banco_state(arquivo_banco_av)
     ultima_id = state.get("ultima_msg_id")
 
@@ -113,15 +113,12 @@ async def retomar_msgs_banco(bot, canal_banco_id: int, bot_banco_id: int, guild_
         ]
 
         for m in pendentes:
-            await processar_msg_banco(
-                m, bot, guild_id, vip_role_id, arquivo_vips, arquivo_banco_av,
-                fuso_brt, webhook_banco, canal_banco_id, webhook_logs, webhook_logs_painel
-            )
+            await processar_msg_banco(m, bot, guild_id, vip_role_id, arquivo_vips, arquivo_banco_av, fuso_brt, cfg)
 
         if pendentes:
             await registrar_log_normal(
                 f"🏦 {len(pendentes)} compra(s) de VIP processada(s) retroativamente ao ligar.",
-                tipo="sucesso", bot=None, canal_id=None
+                tipo="sucesso", bot=bot, canal_id=logs_gerais
             )
     except Exception as e:
-        await registrar_log_normal(f"Erro ao retomar mensagens do banco: {e}", tipo="erro", bot=None, canal_id=None)
+        logging.error(f"Erro ao retomar mensagens do banco: {e}")

@@ -96,31 +96,32 @@ async def checar_videos_novos(api_key: str, canal_id: str, dados: dict, arquivo:
     if not items:
         return
 
-    for item in reversed(items):
-        video_id = item["id"].get("videoId")
-        if not video_id:
-            continue
+    # Pega só o mais recente (primeiro da lista = mais novo)
+    item = items[0]
+    video_id = item["id"].get("videoId")
+    if not video_id:
+        return
 
-        snippet = item["snippet"]
-        titulo = snippet.get("title", "Sem título")
-        thumbnail = snippet.get("thumbnails", {}).get("high", {}).get("url", "")
-        publicado_em = snippet.get("publishedAt", "")
+    snippet = item["snippet"]
+    titulo = snippet.get("title", "Sem título")
+    thumbnail = snippet.get("thumbnails", {}).get("high", {}).get("url", "")
+    publicado_em = snippet.get("publishedAt", "")
 
-        duracao = await obter_duracao_video(api_key, video_id)
-        eh_short = duracao is not None and duracao <= 60
+    duracao = await obter_duracao_video(api_key, video_id)
+    eh_short = duracao is not None and duracao <= 60
 
-        if eh_short:
-            if dados.get("ultimo_short_id") == video_id:
-                continue
-            dados["ultimo_short_id"] = video_id
-            salvar_youtube(dados, arquivo)
-            await anunciar_video(video_id, titulo, thumbnail, publicado_em, "short", cfg)
-        else:
-            if dados.get("ultimo_video_id") == video_id:
-                continue
-            dados["ultimo_video_id"] = video_id
-            salvar_youtube(dados, arquivo)
-            await anunciar_video(video_id, titulo, thumbnail, publicado_em, "video", cfg)
+    if eh_short:
+        if dados.get("ultimo_short_id") == video_id:
+            return
+        dados["ultimo_short_id"] = video_id
+        salvar_youtube(dados, arquivo)
+        await anunciar_video(video_id, titulo, thumbnail, publicado_em, "short", cfg)
+    else:
+        if dados.get("ultimo_video_id") == video_id:
+            return
+        dados["ultimo_video_id"] = video_id
+        salvar_youtube(dados, arquivo)
+        await anunciar_video(video_id, titulo, thumbnail, publicado_em, "video", cfg)
 
 
 async def obter_duracao_video(api_key: str, video_id: str):
