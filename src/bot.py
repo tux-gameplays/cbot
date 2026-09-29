@@ -16,12 +16,10 @@ logging.getLogger("discord.client").setLevel(logging.WARNING)
 logging.getLogger("discord.voice").setLevel(logging.CRITICAL)
 
 intents = discord.Intents.all()
-
 bot = commands.Bot(command_prefix="c+", intents=intents)
 bot.help_command = None
 
 HORA_INICIO = None
-ULTIMO_CODIGO_EM = None
 FUSO_BRT = timezone(timedelta(hours=-3))
 
 # ---------- Variáveis ----------
@@ -33,20 +31,22 @@ SEU_GUILD_ID = int(os.getenv("SERVIDOR"))
 
 CODIGO_ANTECIPADO = int(os.getenv("CODIGO_ANTECIPADO", 0))
 CODIGO_PUBLICO = int(os.getenv("CODIGO_PUBLICO", 0))
+CODIGO_LEMBRETE = int(os.getenv("CODIGO_LEMBRETE", 0))
 CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
-CANAL_COMANDOS = int(os.getenv("CANAL_COMANDOS", 0))
+CANAL_COMANDOS = [int(x.strip()) for x in os.getenv("CANAL_COMANDOS", "0").split(",") if x.strip().isdigit()]
 CANAL_ANUNCIO_LIVES = int(os.getenv("CANAL_ANUNCIO_LIVES", 0))
 CANAL_ANUNCIO_VIDEOS = int(os.getenv("CANAL_ANUNCIO_VIDEOS", 0))
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 YOUTUBE_CANAL_ID = os.getenv("YOUTUBE_CANAL_ID")
+YOUTUBE_CLIENT_SECRET = os.getenv("CLIENT_SECRET_YT")
+MEMBRO_YT = int(os.getenv("MEMBRO_YT", 0))
+MODERADOR_YT = int(os.getenv("MODERADOR_YT", 0))
 
 CALL_LIVE = int(os.getenv("Call_Live"))
 CALL_RECONECTAR = int(os.getenv("Call_Reconectar"))
 
-WEBHOOK_CODIGOS = os.getenv("CODIGO_SALAS")
 WEBHOOK_ANTECIPADO = os.getenv("CODIGO_SALAS_ANTECIPADO")
-WEBHOOK_LEMBRETE_CHAT = os.getenv("LEMBRETE_CHAT")
 
 ADMINISTRADOR = int(os.getenv("Administrador"))
 VIP = int(os.getenv("Vip"))
@@ -91,6 +91,7 @@ LOGS_CALLS = os.getenv("LOGS_CALLS")
 LOGS_SERVIDOR = os.getenv("LOGS_SERVIDOR")
 LOGS_CANAIS = os.getenv("LOGS_CANAIS")
 LOGS_CARGOS = os.getenv("LOGS_CARGOS")
+webhook_banco = os.getenv("webhook_banco")
 
 # ---------- CFG ----------
 
@@ -105,11 +106,15 @@ CFG = {
     "canal_comandos": CANAL_COMANDOS,
     "codigo_antecipado": CODIGO_ANTECIPADO,
     "codigo_publico": CODIGO_PUBLICO,
+    "codigo_lembrete": CODIGO_LEMBRETE,
     "canal_banco": CANAL_BANCO,
     "canal_anuncio_lives": CANAL_ANUNCIO_LIVES,
     "canal_anuncio_videos": CANAL_ANUNCIO_VIDEOS,
     "youtube_api_key": YOUTUBE_API_KEY,
     "youtube_canal_id": YOUTUBE_CANAL_ID,
+    "youtube_client_secret": YOUTUBE_CLIENT_SECRET,
+    "cargo_membro_yt": MEMBRO_YT,
+    "cargo_moderador_yt": MODERADOR_YT,
     "arquivo_vips": ARQUIVO_VIPS,
     "arquivo_amigos": ARQUIVO_AMIGOS,
     "arquivo_warns": ARQUIVO_WARNS,
@@ -123,19 +128,20 @@ CFG = {
     "pasta_bot_raiz": PASTA_BOT_RAIZ,
     "servidor_devs": SERVIDOR_DEVS,
     "cargo_devs": CARGO_DEVS,
-    "webhook_codigos": WEBHOOK_CODIGOS,
     "webhook_antecipado": WEBHOOK_ANTECIPADO,
-    "webhook_lembrete_chat": WEBHOOK_LEMBRETE_CHAT,
     "role_ping_lembrete": ROLE_PING_LEMBRETE,
     "ping_live_programada": PING_LIVE_PROGRAMADA,
     "ping_live_ao_vivo": PING_LIVE_AO_VIVO,
     "ping_video_novo": PING_VIDEO_NOVO,
     "ping_shorts_novo": PING_SHORTS_NOVO,
+    "discord_bot_token": TOKEN,
     "fuso_brt": FUSO_BRT,
     "hora_inicio": None,
     "logs_gerais": LOGS_GERAIS,
     "logs_codigos": LOGS_CODIGOS,
     "logs_painel": LOGS_PAINEL,
+    "logs_join": LOGS_JOIN,
+    "logs_warns": LOGS_WARNS,
     "logs_vip": LOGS_VIP,
     "logs_amigos": LOGS_AMIGOS,
     "logs_punicoes": LOGS_PUNICOES,
@@ -150,9 +156,7 @@ CFG = {
 
 # ---------- Imports ----------
 
-from Modulos.webhooks import (registrar_log_normal, registrar_log_codigo, registrar_log_painel,
-                               registrar_log_vip, registrar_log_amigos, registrar_log_punicoes,
-                               enviar_webhook, apagar_webhook_msg)
+from Modulos.webhooks import registrar_log_normal, registrar_log_codigo, registrar_log_painel, registrar_log_vip, registrar_log_amigos, registrar_log_punicoes, enviar_webhook, apagar_webhook_msg
 from Modulos.vip import checar_vips_expirados
 from Modulos.warns import checar_warns_expirados
 from Modulos.codigos import retomar_timers_pendentes, agendar_job
@@ -162,18 +166,22 @@ from Modulos.logs import (log_entrada_membro, log_saida_membro, log_cargo_altera
                            log_mensagem_apagada, log_mensagem_editada, processar_log_call,
                            log_punicao_externa, log_servidor_atualizado,
                            log_canal_criado, log_canal_deletado, log_canal_atualizado,
-                           log_cargo_criado, log_cargo_deletado, log_cargo_atualizado)
+                           log_cargo_criado, log_cargo_deletado, log_cargo_atualizado,
+                           log_apelido_alterado)
 from Modulos.moderacao import processar_moderacao, processar_comando_local_errado
-from Modulos.youtube import checar_youtube
+from Modulos.youtube import checar_youtube, monitorar_chat_live
 from Modulos.comandos import registrar_comandos
 
 registrar_comandos(bot, CFG)
+
+# ---------- Cooldown codigos ----------
+ULTIMO_CODIGO_EM = None
 
 # ---------- Loops ----------
 
 @tasks.loop(minutes=5)
 async def loop_verificar_vips():
-    expirados = await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT, None)
+    expirados = await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT)
     if expirados:
         embed = discord.Embed(
             title="⌛ VIPs expirados automaticamente",
@@ -212,18 +220,18 @@ async def on_ready():
     except Exception as e:
         logging.error(f"Erro ao sincronizar comandos slash: {e}")
 
-    await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT, None)
+    await checar_vips_expirados(bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, FUSO_BRT)
 
     if not loop_verificar_vips.is_running():
         loop_verificar_vips.start()
-
     if YOUTUBE_API_KEY and YOUTUBE_CANAL_ID and not loop_youtube.is_running():
         loop_youtube.start()
 
-    retomar_timers_pendentes(bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
-                             WEBHOOK_LEMBRETE_CHAT, None, None, ROLE_PING_LEMBRETE)
+    retomar_timers_pendentes(bot, ARQUIVO_TIMERS, FUSO_BRT,
+                             WEBHOOK_ANTECIPADO, CODIGO_ANTECIPADO, CODIGO_PUBLICO, CODIGO_LEMBRETE,
+                             LOGS_GERAIS, LOGS_CODIGOS, ROLE_PING_LEMBRETE)
     await retomar_msgs_banco(bot, CANAL_BANCO, BOT_BANCO_ID, SEU_GUILD_ID, VIP, ARQUIVO_VIPS,
-                             ARQUIVO_BANCO_AV, FUSO_BRT, None, None, None)
+                             ARQUIVO_BANCO_AV, FUSO_BRT, webhook_banco)
     await backup_automatico(PASTA_BACKUP, PASTA_SRC, PASTA_MEMORIAS, FUSO_BRT, None)
 
     if PING_LEMBRETE:
@@ -236,12 +244,11 @@ async def on_ready():
                 if role:
                     logging.info(f"🏷️ Role ping lembrete: {role.name} (ID: {role_id})")
 
-    await git_auto_commit(PASTA_BOT_RAIZ, None)
+    await git_auto_commit(PASTA_BOT_RAIZ, bot=bot, canal_id=LOGS_GERAIS)
     await preencher_info_usuarios()
-
     await registrar_log_normal(f"✅ Bot online: {bot.user}", tipo="sucesso", bot=bot, canal_id=LOGS_GERAIS)
 
-# ---------- Funções auxiliares ----------
+# ---------- Auxiliares ----------
 
 async def preencher_info_usuarios():
     from Modulos.vip import carregar_vips, salvar_vips, atualizar_info_usuario
@@ -303,6 +310,14 @@ async def preencher_info_usuarios():
     if atualizados > 0:
         logging.info(f"👤 Info de {atualizados} usuário(s) preenchida(s) nos JSONs")
 
+async def enviar_msg_canal(canal_id: int, conteudo: str = None, embed: discord.Embed = None):
+    canal = bot.get_channel(canal_id)
+    if canal:
+        try:
+            await canal.send(content=conteudo, embed=embed)
+        except Exception as e:
+            logging.error(f"Erro ao enviar mensagem no canal {canal_id}: {e}")
+
 # ---------- Eventos ----------
 
 @bot.event
@@ -310,10 +325,30 @@ async def on_member_join(member: discord.Member):
     from Modulos.amigos import consultar_amigo, atribuir_cargo_amigo
     if member.guild.id != SEU_GUILD_ID:
         return
+
     dados_amigo = consultar_amigo(member.id, ARQUIVO_AMIGOS)
     if dados_amigo.get("amigo"):
-        await atribuir_cargo_amigo(member.id, bot, SEU_GUILD_ID, AMIGOS_ROLE, None)
+        await atribuir_cargo_amigo(member.id, bot, SEU_GUILD_ID, AMIGOS_ROLE)
+
+    # Log de entrada com estilo (inspirado no exemplo)
     await log_entrada_membro(member, CFG)
+
+    # Mensagem de boas-vindas no canal de join
+    if LOGS_JOIN:
+        agora = datetime.now(FUSO_BRT)
+        guild = member.guild
+        member_count = guild.member_count
+
+        embed = discord.Embed(
+            description=f"➡ **{member.name}** (@{member.name})\nEntrou no servidor!\n\nAgora somos **{member_count}** membros\nId: {member.id}",
+            color=discord.Color.green()
+        )
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.timestamp = datetime.now(timezone.utc)
+
+        canal_join = bot.get_channel(int(LOGS_JOIN))
+        if canal_join:
+            await canal_join.send(f"👋 <@{member.id}>", embed=embed)
 
 @bot.event
 async def on_member_remove(member: discord.Member):
@@ -339,11 +374,28 @@ async def on_member_remove(member: discord.Member):
 
     await log_saida_membro(member, CFG)
 
+    # Mensagem de saída no canal de join
+    if LOGS_JOIN:
+        guild = member.guild
+        member_count = guild.member_count
+
+        embed = discord.Embed(
+            description=f"⬅ **{member.name}** (@{member.name})\nSaiu no servidor!\n\nAgora somos **{member_count}** membros\nId: {member.id}",
+            color=discord.Color.red()
+        )
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.timestamp = datetime.now(timezone.utc)
+
+        canal_join = bot.get_channel(int(LOGS_JOIN))
+        if canal_join:
+            await canal_join.send(embed=embed)
+
 @bot.event
 async def on_member_update(antes: discord.Member, depois: discord.Member):
     if antes.guild.id != SEU_GUILD_ID:
         return
     await log_cargo_alterado(depois, antes, CFG)
+    await log_apelido_alterado(antes, depois, CFG)
 
 @bot.event
 async def on_message_delete(message: discord.Message):
@@ -351,6 +403,10 @@ async def on_message_delete(message: discord.Message):
         return
     if message.author == bot.user:
         return
+    # Ignora mensagens de código correto que viraram embed
+    if message.channel.id in [CODIGO_ANTECIPADO, CODIGO_PUBLICO]:
+        if len(message.content) == 6 and message.content.isupper() and message.content.isalpha():
+            return
     await log_mensagem_apagada(message, CFG)
 
 @bot.event
@@ -426,11 +482,11 @@ async def on_message(message: discord.Message):
         bloqueado = await processar_comando_local_errado(message, CFG)
         if bloqueado:
             return
-
         bloqueado = await processar_moderacao(message, CFG)
         if bloqueado:
             return
 
+    # Canal antecipado — manda pelo proprio canal (sem webhook)
     if message.channel.id == CODIGO_ANTECIPADO:
         if ULTIMO_CODIGO_EM is not None:
             decorrido = (datetime.now(timezone.utc) - ULTIMO_CODIGO_EM).total_seconds()
@@ -441,7 +497,7 @@ async def on_message(message: discord.Message):
                     pass
                 return
 
-        if len(message.content) == 6 and " " not in message.content and message.content.isupper():
+        if len(message.content) == 6 and " " not in message.content and message.content.isupper() and message.content.isalpha():
             conteudo = message.content
             autor_nome = f"{message.author.display_name} - {message.author.name}"
             autor_avatar = message.author.avatar.url if message.author.avatar else None
@@ -454,12 +510,13 @@ async def on_message(message: discord.Message):
 
             try:
                 await message.delete()
-                antecipado_msg = await enviar_webhook(WEBHOOK_ANTECIPADO, embed=embed, username=f"Sala do {message.author.display_name}", wait=True)
+                canal_antecipado = bot.get_channel(CODIGO_ANTECIPADO)
+                antecipado_msg = await canal_antecipado.send(embed=embed)
                 antecipado_id = antecipado_msg.id
                 ULTIMO_CODIGO_EM = datetime.now(timezone.utc)
-                await registrar_log_codigo(f"Mensagem reenviada no antecipado: {conteudo}", tipo="info", bot=bot, canal_id=LOGS_CODIGOS)
+                await registrar_log_codigo(f"Código reenviado no antecipado: {conteudo}", tipo="info", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao reenviar mensagem antecipada: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
+                await registrar_log_normal(f"Erro ao reenviar código antecipado: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
                 return
 
             agora = datetime.now(FUSO_BRT)
@@ -476,8 +533,9 @@ async def on_message(message: discord.Message):
                 (f"publicar:{antecipado_id}", {**info_base, "tipo": "publicar", "disparar_em": (agora + timedelta(seconds=30)).isoformat()}),
                 (f"antecipado_expira:{antecipado_id}", {**info_base, "tipo": "antecipado_expira", "disparar_em": (agora + timedelta(seconds=600)).isoformat()})
             ]:
-                agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
-                            WEBHOOK_LEMBRETE_CHAT, None, None, ROLE_PING_LEMBRETE)
+                agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT,
+                            WEBHOOK_ANTECIPADO, CODIGO_ANTECIPADO, CODIGO_PUBLICO, CODIGO_LEMBRETE,
+                            LOGS_GERAIS, LOGS_CODIGOS, ROLE_PING_LEMBRETE)
         else:
             try:
                 await message.delete()
@@ -485,8 +543,9 @@ async def on_message(message: discord.Message):
             except Exception as e:
                 await registrar_log_normal(f"Erro ao apagar mensagem inválida: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
 
+    # Canal público — manda pelo proprio canal (sem webhook)
     elif message.channel.id == CODIGO_PUBLICO:
-        if len(message.content) == 6 and " " not in message.content and message.content.isupper():
+        if len(message.content) == 6 and " " not in message.content and message.content.isupper() and message.content.isalpha():
             conteudo = message.content
             autor_nome = f"{message.author.display_name} - {message.author.name}"
             autor_avatar = message.author.avatar.url if message.author.avatar else None
@@ -498,10 +557,11 @@ async def on_message(message: discord.Message):
 
             try:
                 await message.delete()
-                publico_msg = await enviar_webhook(WEBHOOK_CODIGOS, embed=embed, username=f"Sala do {message.author.display_name}", wait=True)
-                await registrar_log_codigo(f"Mensagem enviada direto ao público: {conteudo}", tipo="sucesso", bot=bot, canal_id=LOGS_CODIGOS)
+                canal_publico = bot.get_channel(CODIGO_PUBLICO)
+                publico_msg = await canal_publico.send(embed=embed)
+                await registrar_log_codigo(f"Código enviado direto ao público: {conteudo}", tipo="sucesso", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
-                await registrar_log_normal(f"Erro ao reenviar mensagem direta no público: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
+                await registrar_log_normal(f"Erro ao reenviar código público: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
                 return
 
             agora = datetime.now(FUSO_BRT)
@@ -509,8 +569,9 @@ async def on_message(message: discord.Message):
                 (f"publico_expira:{publico_msg.id}", {"tipo": "publico_expira", "publico_id": publico_msg.id, "conteudo": conteudo, "disparar_em": (agora + timedelta(seconds=600)).isoformat()}),
                 (f"lembrete:{publico_msg.id}", {"tipo": "lembrete", "conteudo": conteudo, "disparar_em": (agora + timedelta(seconds=15)).isoformat()})
             ]:
-                agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT, WEBHOOK_ANTECIPADO, WEBHOOK_CODIGOS,
-                            WEBHOOK_LEMBRETE_CHAT, None, None, ROLE_PING_LEMBRETE)
+                agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT,
+                            WEBHOOK_ANTECIPADO, CODIGO_ANTECIPADO, CODIGO_PUBLICO, CODIGO_LEMBRETE,
+                            LOGS_GERAIS, LOGS_CODIGOS, ROLE_PING_LEMBRETE)
         else:
             try:
                 await message.delete()

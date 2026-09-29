@@ -108,10 +108,10 @@ def fazer_git_commit(pasta_raiz: str, mensagem: str = "Atualiza projeto") -> boo
         logging.error(f"❌ Erro ao fazer commit Git: {e}")
         return False
 
-async def git_auto_commit(pasta_raiz: str, webhook_logs: str):
+async def git_auto_commit(pasta_raiz: str, bot=None, canal_id=None):
     resultado = fazer_git_commit(pasta_raiz)
     if resultado:
         logging.info("📦 Git: alterações enviadas automaticamente")
-        await registrar_log_normal("📦 Git: alterações enviadas automaticamente", tipo="sucesso", webhook_logs=webhook_logs)
+        await registrar_log_normal("📦 Git: alterações enviadas automaticamente", tipo="sucesso", bot=bot, canal_id=canal_id)
     elif resultado is False:
         logging.info("📦 Git: nenhuma alteração encontrada")

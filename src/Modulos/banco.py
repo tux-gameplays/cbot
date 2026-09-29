@@ -75,18 +75,18 @@ async def processar_msg_banco(message: discord.Message, bot, guild_id: int, vip_
         )
         embed_log.add_field(name="Tempo", value=label_tempo, inline=True)
         embed_log.add_field(name="ID do usuário", value=str(user_id), inline=True)
-        await registrar_log_painel(embed_log, webhook_logs_painel=webhook_logs_painel)
+        await registrar_log_painel(embed_log, bot=None, canal_id=None)
     else:
         await registrar_log_normal(
             "⚠️ VIP vendido no banco mas não foi possível identificar o comprador pelo embed.",
-            tipo="aviso", webhook_logs=webhook_logs
+            tipo="aviso", bot=None, canal_id=None
         )
 
     salvar_banco_state(message.id, arquivo_banco_av)
 
 async def retomar_msgs_banco(bot, canal_banco_id: int, bot_banco_id: int, guild_id: int,
                               vip_role_id: int, arquivo_vips: str, arquivo_banco_av: str,
-                              fuso_brt, webhook_banco: str, webhook_logs: str, webhook_logs_painel: str):
+                              fuso_brt, webhook_banco: str, cfg: dict = None):
     if not canal_banco_id or not bot_banco_id:
         return
 
@@ -121,7 +121,7 @@ async def retomar_msgs_banco(bot, canal_banco_id: int, bot_banco_id: int, guild_
         if pendentes:
             await registrar_log_normal(
                 f"🏦 {len(pendentes)} compra(s) de VIP processada(s) retroativamente ao ligar.",
-                tipo="sucesso", webhook_logs=webhook_logs
+                tipo="sucesso", bot=None, canal_id=None
             )
     except Exception as e:
-        await registrar_log_normal(f"Erro ao retomar mensagens do banco: {e}", tipo="erro", webhook_logs=webhook_logs)
+        await registrar_log_normal(f"Erro ao retomar mensagens do banco: {e}", tipo="erro", bot=None, canal_id=None)

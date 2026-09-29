@@ -4,6 +4,8 @@ Memoria/
 
 # Segredos
 src/.env
+src/client_secret.json
+scr/token_youtube.json
 *.pkl
 cbot.sh
 
