@@ -68,6 +68,15 @@ ARQUIVO_AMIGOS = os.getenv("ARQUIVO_AMIGOS")
 ARQUIVO_WARNS = os.getenv("ARQUIVO_WARNS")
 ARQUIVO_TIMERS = os.getenv("ARQUIVO_TIMERS")
 ARQUIVO_BANCO_AV = os.getenv("ARQUIVO_AV_BANCO")
+ARQUIVO_SALAS = os.getenv("ARQUIVO_SALAS")
+if not ARQUIVO_SALAS and ARQUIVO_VIPS:
+    import os as _os
+    ARQUIVO_SALAS = _os.path.join(_os.path.dirname(ARQUIVO_VIPS), "Salas.json")
+
+SALAS_PONTE = int(os.getenv("SALAS_PONTE", 0))
+ANTECIPADO_PONTE = int(os.getenv("ANTECIPADO_PONTE", 0))
+CANAL_SALAS_PUBLICO = CODIGO_PUBLICO
+CANAL_SALAS_ANTECIPADO = CODIGO_ANTECIPADO
 ARQUIVO_MODERACAO = os.getenv("ARQUIVO_MODERACAO")
 ARQUIVO_YOUTUBE = os.getenv("ARQUIVO_YOUTUBE")
 
@@ -119,6 +128,11 @@ CFG = {
     "arquivo_warns": ARQUIVO_WARNS,
     "arquivo_timers": ARQUIVO_TIMERS,
     "arquivo_banco_av": ARQUIVO_BANCO_AV,
+    "arquivo_salas": ARQUIVO_SALAS,
+    "salas_ponte": SALAS_PONTE,
+    "antecipado_ponte": ANTECIPADO_PONTE,
+    "canal_salas_publico": CANAL_SALAS_PUBLICO,
+    "canal_salas_antecipado": CANAL_SALAS_ANTECIPADO,
     "arquivo_moderacao": ARQUIVO_MODERACAO,
     "arquivo_youtube": ARQUIVO_YOUTUBE,
     "pasta_backup": PASTA_BACKUP,
@@ -168,6 +182,7 @@ from Modulos.logs import (log_entrada_membro, log_saida_membro, log_cargo_altera
                            log_cargo_criado, log_cargo_deletado, log_cargo_atualizado,
                            log_apelido_alterado)
 from Modulos.moderacao import processar_moderacao, processar_comando_local_errado
+from Modulos.salas import processar_msg_sala, processar_edicao_sala, retomar_salas_pendentes
 from Modulos.youtube import checar_youtube, monitorar_chat_live
 from Modulos.comandos import registrar_comandos
 
@@ -245,6 +260,7 @@ async def on_ready():
 
     await git_auto_commit(PASTA_BOT_RAIZ, bot=bot, canal_id=LOGS_GERAIS)
     await preencher_info_usuarios()
+    await retomar_salas_pendentes(bot, CFG)
     await registrar_log_normal(f"✅ Bot online: {bot.user}", tipo="sucesso", bot=bot, canal_id=LOGS_GERAIS)
 
 # ---------- Auxiliares ----------
@@ -412,6 +428,12 @@ async def on_message_delete(message: discord.Message):
 async def on_message_edit(antes: discord.Message, depois: discord.Message):
     if not antes.guild or antes.guild.id != SEU_GUILD_ID:
         return
+
+    # Edição nos canais ponte — atualiza embed da sala
+    if antes.channel.id in [SALAS_PONTE, ANTECIPADO_PONTE] and (antes.webhook_id or antes.author.bot):
+        await processar_edicao_sala(depois, bot, CFG)
+        return
+
     await log_mensagem_editada(antes, depois, CFG)
 
 @bot.event
@@ -473,8 +495,9 @@ async def on_message(message: discord.Message):
     global ULTIMO_CODIGO_EM
 
     eh_bot_banco = (BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID and message.channel.id == CANAL_BANCO)
+    eh_msg_sala = (message.channel.id in [SALAS_PONTE, ANTECIPADO_PONTE] and SALAS_PONTE != 0 and (message.webhook_id is not None or message.author.bot))
 
-    if message.author.bot and message.author != bot.user and not eh_bot_banco:
+    if message.author.bot and message.author != bot.user and not eh_bot_banco and not eh_msg_sala:
         return
 
     if not message.author.bot:
@@ -591,6 +614,18 @@ async def on_message(message: discord.Message):
     elif message.channel.id == CANAL_BANCO and BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID:
         await processar_msg_banco(message, bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, ARQUIVO_BANCO_AV,
                                   FUSO_BRT, CFG)
+
+    # Canal ponte — salas públicas
+    if message.channel.id == SALAS_PONTE and SALAS_PONTE != 0:
+        if message.webhook_id or message.author.bot:
+            await processar_msg_sala(message, bot, CFG, tipo="publico")
+            return
+
+    # Canal ponte — salas antecipadas
+    if message.channel.id == ANTECIPADO_PONTE and ANTECIPADO_PONTE != 0:
+        if message.webhook_id or message.author.bot:
+            await processar_msg_sala(message, bot, CFG, tipo="antecipado")
+            return
 
     await bot.process_commands(message)
 
