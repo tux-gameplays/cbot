@@ -495,7 +495,7 @@ async def on_message(message: discord.Message):
     global ULTIMO_CODIGO_EM
 
     eh_bot_banco = (BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID and message.channel.id == CANAL_BANCO)
-    eh_msg_sala = (message.channel.id in [SALAS_PONTE, ANTECIPADO_PONTE] and SALAS_PONTE != 0 and (message.webhook_id is not None or message.author.bot))
+    eh_msg_sala = (message.channel.id in ([SALAS_PONTE] if SALAS_PONTE else []) + ([ANTECIPADO_PONTE] if ANTECIPADO_PONTE else []) and (message.webhook_id is not None or message.author.bot))
 
     if message.author.bot and message.author != bot.user and not eh_bot_banco and not eh_msg_sala:
         return
@@ -507,6 +507,15 @@ async def on_message(message: discord.Message):
         bloqueado = await processar_moderacao(message, CFG)
         if bloqueado:
             return
+
+    # Canais ponte — salas (webhook externa)
+    if SALAS_PONTE != 0 and message.channel.id == SALAS_PONTE and (message.webhook_id or message.author.bot):
+        await processar_msg_sala(message, bot, CFG, tipo="publico")
+        return
+
+    if ANTECIPADO_PONTE != 0 and message.channel.id == ANTECIPADO_PONTE and (message.webhook_id or message.author.bot):
+        await processar_msg_sala(message, bot, CFG, tipo="antecipado")
+        return
 
     # Canal antecipado — manda pelo proprio canal (sem webhook)
     if message.channel.id == CODIGO_ANTECIPADO:
@@ -614,18 +623,6 @@ async def on_message(message: discord.Message):
     elif message.channel.id == CANAL_BANCO and BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID:
         await processar_msg_banco(message, bot, SEU_GUILD_ID, VIP, ARQUIVO_VIPS, ARQUIVO_BANCO_AV,
                                   FUSO_BRT, CFG)
-
-    # Canal ponte — salas públicas
-    if message.channel.id == SALAS_PONTE and SALAS_PONTE != 0:
-        if message.webhook_id or message.author.bot:
-            await processar_msg_sala(message, bot, CFG, tipo="publico")
-            return
-
-    # Canal ponte — salas antecipadas
-    if message.channel.id == ANTECIPADO_PONTE and ANTECIPADO_PONTE != 0:
-        if message.webhook_id or message.author.bot:
-            await processar_msg_sala(message, bot, CFG, tipo="antecipado")
-            return
 
     await bot.process_commands(message)
 
