@@ -198,7 +198,7 @@ async def loop_verificar_vips():
         )
         await registrar_log_punicoes(embed_warns, bot=bot, canal_id=LOGS_PUNICOES)
 
-@tasks.loop(minutes=10)
+@tasks.loop(minutes=30)
 async def loop_youtube():
     if YOUTUBE_API_KEY and YOUTUBE_CANAL_ID:
         await checar_youtube(CFG)
@@ -545,6 +545,15 @@ async def on_message(message: discord.Message):
     # Canal público — manda pelo proprio canal (sem webhook)
     elif message.channel.id == CODIGO_PUBLICO:
         if len(message.content) == 6 and " " not in message.content and message.content.isupper() and message.content.isalpha():
+            if ULTIMO_CODIGO_EM is not None:
+                decorrido = (datetime.now(timezone.utc) - ULTIMO_CODIGO_EM).total_seconds()
+                if decorrido < 3:
+                    try:
+                        await message.delete()
+                    except Exception:
+                        pass
+                    return
+
             conteudo = message.content
             autor_nome = f"{message.author.display_name} - {message.author.name}"
             autor_avatar = message.author.avatar.url if message.author.avatar else None
@@ -558,6 +567,7 @@ async def on_message(message: discord.Message):
                 await message.delete()
                 canal_publico = bot.get_channel(CODIGO_PUBLICO)
                 publico_msg = await canal_publico.send(embed=embed)
+                ULTIMO_CODIGO_EM = datetime.now(timezone.utc)
                 await registrar_log_codigo(f"Código enviado direto ao público: {conteudo}", tipo="sucesso", bot=bot, canal_id=LOGS_CODIGOS)
             except Exception as e:
                 await registrar_log_normal(f"Erro ao reenviar código público: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
