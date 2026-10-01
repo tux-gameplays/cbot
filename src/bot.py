@@ -518,7 +518,7 @@ async def on_message(message: discord.Message):
         return
 
     # Canal antecipado — manda pelo proprio canal (sem webhook)
-    if message.channel.id == CODIGO_ANTECIPADO:
+    if message.channel.id == CODIGO_ANTECIPADO and message.author != bot.user:
         if ULTIMO_CODIGO_EM is not None:
             decorrido = (datetime.now(timezone.utc) - ULTIMO_CODIGO_EM).total_seconds()
             if decorrido < 3:
@@ -575,7 +575,7 @@ async def on_message(message: discord.Message):
                 await registrar_log_normal(f"Erro ao apagar mensagem inválida: {e}", tipo="erro", bot=bot, canal_id=LOGS_GERAIS)
 
     # Canal público — manda pelo proprio canal (sem webhook)
-    elif message.channel.id == CODIGO_PUBLICO:
+    elif message.channel.id == CODIGO_PUBLICO and message.author != bot.user:
         if len(message.content) == 6 and " " not in message.content and message.content.isupper() and message.content.isalpha():
             if ULTIMO_CODIGO_EM is not None:
                 decorrido = (datetime.now(timezone.utc) - ULTIMO_CODIGO_EM).total_seconds()
