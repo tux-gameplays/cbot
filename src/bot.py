@@ -24,6 +24,9 @@ FUSO_BRT = timezone(timedelta(hours=-3))
 
 # ---------- Variáveis ----------
 
+def ler_lista_ids(nome: str) -> list[int]:
+    return [int(x) for x in re.findall(r"\d+", os.getenv(nome, ""))]
+
 TOKEN = os.getenv("TOKEN")
 SERVIDOR_DEVS = int(os.getenv("SERVIDOR_DOS_DEVS", 0))
 CARGO_DEVS = int(os.getenv("CARGO_DOS_DEVS", 0))
@@ -33,7 +36,8 @@ CODIGO_ANTECIPADO = int(os.getenv("CODIGO_ANTECIPADO", 0))
 CODIGO_PUBLICO = int(os.getenv("CODIGO_PUBLICO", 0))
 CODIGO_LEMBRETE = int(os.getenv("CODIGO_LEMBRETE", 0))
 CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
-CANAL_COMANDOS = [int(x.strip()) for x in os.getenv("CANAL_COMANDOS", "0").split(",") if x.strip().isdigit()]
+CANAL_COMANDOS = ler_lista_ids("CANAL_COMANDOS")
+CANAL_LINKS_WHITELIST = ler_lista_ids("CANAL_LINKS_WHITELIST")
 CANAL_ANUNCIO_LIVES = int(os.getenv("CANAL_ANUNCIO_LIVES", 0))
 CANAL_ANUNCIO_VIDEOS = int(os.getenv("CANAL_ANUNCIO_VIDEOS", 0))
 CANAL_HONEYPOT = int(os.getenv("CANAL_HONEYPOT", 0))
@@ -122,6 +126,7 @@ CFG = {
     "call_live": CALL_LIVE,
     "call_reconectar": CALL_RECONECTAR,
     "canal_comandos": CANAL_COMANDOS,
+    "canais_links_whitelist": CANAL_LINKS_WHITELIST,
     "codigo_antecipado": CODIGO_ANTECIPADO,
     "codigo_publico": CODIGO_PUBLICO,
     "codigo_lembrete": CODIGO_LEMBRETE,

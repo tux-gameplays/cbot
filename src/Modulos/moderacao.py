@@ -26,6 +26,16 @@ DOMINIOS_LINKS_PERMITIDOS = [
     r"giphy\.com",
 ]
 
+def como_lista(valor) -> list[int]:
+    if isinstance(valor, (list, tuple, set)):
+        return [int(x) for x in valor if x]
+    return [int(valor)] if valor else []
+
+def canal_com_links_liberados(message: discord.Message, cfg: dict) -> bool:
+    liberados = como_lista(cfg.get("canais_links_whitelist"))
+    ids = {message.channel.id, getattr(message.channel, "parent_id", None)}
+    return any(i in liberados for i in ids if i)
+
 def carregar_moderacao(arquivo: str) -> dict:
     if not arquivo or not os.path.exists(arquivo):
         return {"avisos": {}}
@@ -188,7 +198,7 @@ async def processar_moderacao(message: discord.Message, cfg: dict) -> bool:
                                   "Divulgação de servidor", cfg)
         return True
 
-    if detectar_link_bloqueado(conteudo):
+    if not canal_com_links_liberados(message, cfg) and detectar_link_bloqueado(conteudo):
         await _aplicar_ou_avisar(message, "link",
                                   "Links não são permitidos aqui. Apenas YouTube e GIFs do Discord.",
                                   "Link não permitido", cfg)
@@ -213,7 +223,8 @@ async def processar_comando_local_errado(message: discord.Message, cfg: dict) ->
     if not message.content.startswith("c+"):
         return False
 
-    canal_comandos = cfg.get("canal_comandos", 0)
+    canais_comandos = como_lista(cfg.get("canal_comandos"))
+    mencoes_comandos = ", ".join(f"<#{c}>" for c in canais_comandos)
     canal_antecipado = cfg.get("codigo_antecipado", 0)
     canal_publico = cfg.get("codigo_publico", 0)
     eh_cod = message.content.lower().startswith("c+cod")
@@ -221,13 +232,13 @@ async def processar_comando_local_errado(message: discord.Message, cfg: dict) ->
     if message.channel.id in [canal_antecipado, canal_publico]:
         if not eh_cod:
             await _aplicar_ou_avisar(message, "comando_local",
-                                      f"Apenas `c+cod` é permitido neste canal. Use <#{canal_comandos}> para outros comandos.",
+                                      f"Apenas `c+cod` é permitido neste canal. Use {mencoes_comandos} para outros comandos.",
                                       "Comando em local errado", cfg)
             return True
 
-    elif message.channel.id != canal_comandos:
+    elif canais_comandos and message.channel.id not in canais_comandos:
         await _aplicar_ou_avisar(message, "comando_local",
-                                  f"Comandos só podem ser usados em <#{canal_comandos}>.",
+                                  f"Comandos só podem ser usados em {mencoes_comandos}.",
                                   "Comando em local errado", cfg)
         return True
 
