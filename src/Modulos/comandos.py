@@ -521,7 +521,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
             await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
             return
         embed = gerar_painel_inicial()
-        await interaction.response.send_message(embed=embed, view=PainelView(cfg), ephemeral=True)
+        await interaction.response.send_message(embed=embed, view=PainelView(cfg, interaction.user.id), ephemeral=True)
         embed_log = discord.Embed(title="📋 Painel aberto", description=f"{interaction.user.mention} abriu o painel de controle.", color=discord.Color.blurple())
         embed_log.add_field(name="ID do usuário", value=str(interaction.user.id), inline=True)
         await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))

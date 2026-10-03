@@ -6,6 +6,8 @@ import logging
 from datetime import datetime, timedelta
 from Modulos.webhooks import enviar_webhook, apagar_webhook_msg, registrar_log_normal, registrar_log_codigo
 
+REPETIR_CODIGO_CHAT_LIVE = 4
+
 def carregar_timers(arquivo: str):
     if not arquivo or not os.path.exists(arquivo):
         return {"codigos": {}}
@@ -152,7 +154,7 @@ async def processar_job(chave: str, job: dict, bot, arquivo_timers: str, fuso_br
         elif tipo == "lembrete":
             lembrete_embed = discord.Embed(
                 title="Lembrete enviar código chat live",
-                description=job["conteudo"],
+                description="\n".join([job["conteudo"]] * REPETIR_CODIGO_CHAT_LIVE),
                 color=discord.Color.red()
             )
             canal_lemb = bot.get_channel(canal_lembrete)

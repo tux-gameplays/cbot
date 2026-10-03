@@ -14,13 +14,35 @@ def gerar_painel_inicial():
     embed.add_field(name="🎙️ Call", value="Controle entrada, fala e quem está na call live.", inline=False)
     return embed
 
-class PainelView(discord.ui.View):
-    def __init__(self, cfg):
-        super().__init__(timeout=None)
+def _dono_id(destino) -> int:
+    return destino.user.id if isinstance(destino, discord.Interaction) else destino.author.id
+
+class PainelBaseView(discord.ui.View):
+    def __init__(self, dono_id: int, cfg: dict, timeout: float | None = 180):
+        super().__init__(timeout=timeout)
+        self.dono_id = dono_id
+        self.cfg = cfg
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.dono_id:
+            return True
+        await interaction.response.send_message("🚫 Só quem abriu o painel pode usar estes botões.", ephemeral=True)
+        embed_log = discord.Embed(
+            title="🚨 Uso indevido do painel",
+            description=f"{interaction.user.mention} tentou usar o painel aberto por <@{self.dono_id}>.",
+            color=discord.Color.red()
+        )
+        embed_log.add_field(name="ID do usuário", value=str(interaction.user.id), inline=True)
+        await registrar_log_painel(embed_log, bot=self.cfg["bot"], canal_id=self.cfg.get("logs_painel"))
+        return False
+
+class PainelView(PainelBaseView):
+    def __init__(self, cfg, dono_id: int):
+        super().__init__(dono_id, cfg, timeout=None)
         self.add_item(PainelSelectInicial(cfg))
 
-def montar_view_selecionar_alvo(tipo: str, cfg: dict) -> discord.ui.View:
-    view = discord.ui.View()
+def montar_view_selecionar_alvo(tipo: str, cfg: dict, dono_id: int) -> discord.ui.View:
+    view = PainelBaseView(dono_id, cfg)
 
     select = discord.ui.UserSelect(placeholder="Escolha um membro do servidor...")
 
@@ -46,7 +68,7 @@ def montar_view_selecionar_alvo(tipo: str, cfg: dict) -> discord.ui.View:
 
     voltar_btn = discord.ui.Button(label="Voltar", style=discord.ButtonStyle.secondary)
     async def voltar_callback(interaction_voltar: discord.Interaction):
-        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg))
+        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg, interaction_voltar.user.id))
     voltar_btn.callback = voltar_callback
     view.add_item(voltar_btn)
 
@@ -82,15 +104,15 @@ class PainelSelectInicial(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         if self.values[0] == "💎 VIP":
             embed = discord.Embed(title="💎 Escolher usuário", description="Selecione um membro do servidor, ou digite o ID manualmente se a pessoa já saiu.", color=discord.Color.gold())
-            await interaction.response.edit_message(embed=embed, view=montar_view_selecionar_alvo("vip", self.cfg))
+            await interaction.response.edit_message(embed=embed, view=montar_view_selecionar_alvo("vip", self.cfg, interaction.user.id))
         elif self.values[0] == "👥 Amigos":
             embed = discord.Embed(title="👥 Escolher usuário", description="Selecione um membro do servidor, ou digite o ID manualmente se a pessoa já saiu.", color=discord.Color.teal())
-            await interaction.response.edit_message(embed=embed, view=montar_view_selecionar_alvo("amigo", self.cfg))
+            await interaction.response.edit_message(embed=embed, view=montar_view_selecionar_alvo("amigo", self.cfg, interaction.user.id))
         elif self.values[0] == "🎙️ Call":
             await mostrar_gerenciar_call(interaction, self.cfg)
         elif self.values[0] == "⚠️ Warns":
             embed = discord.Embed(title="⚠️ Escolher usuário", description="Selecione um membro do servidor, ou digite o ID manualmente.", color=discord.Color.orange())
-            await interaction.response.edit_message(embed=embed, view=montar_view_selecionar_alvo("warn", self.cfg))
+            await interaction.response.edit_message(embed=embed, view=montar_view_selecionar_alvo("warn", self.cfg, interaction.user.id))
 
 class WarnModal(discord.ui.Modal, title="⚠️ Gerenciar Warns"):
     usuario_id = discord.ui.TextInput(label="ID do usuário", placeholder="Digite o ID do usuário", required=True)
@@ -123,7 +145,7 @@ async def mostrar_gerenciar_warns(interaction: discord.Interaction, user_id: int
     else:
         embed.add_field(name="Warns ativos", value="Nenhum.", inline=False)
 
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     botao_warn = discord.ui.Button(label="Dar Warn", style=discord.ButtonStyle.red)
     botao_ewarn = discord.ui.Button(label="Dar Warn Eterno", style=discord.ButtonStyle.danger)
@@ -159,7 +181,7 @@ async def mostrar_gerenciar_warns(interaction: discord.Interaction, user_id: int
 
     voltar_btn = discord.ui.Button(label="Voltar", style=discord.ButtonStyle.secondary)
     async def voltar_callback(interaction_voltar: discord.Interaction):
-        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg))
+        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg, interaction_voltar.user.id))
     voltar_btn.callback = voltar_callback
     view.add_item(voltar_btn)
 
@@ -241,7 +263,7 @@ async def mostrar_gerenciar_amigo(interaction: discord.Interaction, user_id: int
         user = await cfg["bot"].fetch_user(user_id)
     embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
 
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     if tem_amigo:
         botao_remover = discord.ui.Button(label="Remover Amigo", style=discord.ButtonStyle.red)
@@ -266,7 +288,7 @@ async def mostrar_gerenciar_amigo(interaction: discord.Interaction, user_id: int
 
     voltar_btn = discord.ui.Button(label="Voltar", style=discord.ButtonStyle.secondary)
     async def voltar_callback(interaction_voltar: discord.Interaction):
-        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg))
+        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg, interaction_voltar.user.id))
     voltar_btn.callback = voltar_callback
     view.add_item(voltar_btn)
 
@@ -308,7 +330,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
     embed.add_field(name="Membros na call", value=str(len(membros_nao_admin)), inline=True)
     embed.add_field(name="Pessoas na call", value=str(len(membros_na_call)), inline=True)
 
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     botao_entrada = discord.ui.Button(label="Liberar Entrada" if entrada_bloqueada else "Bloquear Entrada", style=discord.ButtonStyle.green if entrada_bloqueada else discord.ButtonStyle.red)
 
@@ -417,7 +439,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
 
     voltar_btn = discord.ui.Button(label="Voltar", style=discord.ButtonStyle.secondary)
     async def voltar_callback(interaction_voltar: discord.Interaction):
-        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg))
+        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg, interaction_voltar.user.id))
     voltar_btn.callback = voltar_callback
     view.add_item(voltar_btn)
 
@@ -426,7 +448,7 @@ async def mostrar_gerenciar_call(interaction: discord.Interaction, cfg: dict):
 async def mostrar_setar_tempo_vip(interaction: discord.Interaction, user_id: int, tem_vip: bool, cfg: dict):
     from Modulos.vip import setar_tempo_vip
     embed = discord.Embed(title="🕒 Setar Tempo VIP", description=f"Escolha o tempo exato de VIP para <@{user_id}> (substitui o tempo atual, inclusive se for eterno).", color=discord.Color.gold())
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     for label, dias in [("1 Dia", 1), ("3 Dias", 3), ("7 Dias", 7), ("30 Dias", 30)]:
         botao = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple)
@@ -455,7 +477,7 @@ async def mostrar_setar_tempo_vip(interaction: discord.Interaction, user_id: int
 async def mostrar_adicionar_vip(interaction: discord.Interaction, user_id: int, tem_vip: bool, cfg: dict):
     from Modulos.vip import adicionar_vip
     embed = discord.Embed(title="➕ Adicionar VIP", description=f"Quanto tempo deseja adicionar a <@{user_id}>?", color=discord.Color.green())
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     for label, dias in [("1 Dia", 1), ("3 Dias", 3), ("7 Dias", 7), ("30 Dias", 30), ("Eterno", None)]:
         botao = discord.ui.Button(label=label, style=discord.ButtonStyle.green)
@@ -483,7 +505,7 @@ async def mostrar_adicionar_vip(interaction: discord.Interaction, user_id: int, 
 async def mostrar_remover_tempo_vip(interaction: discord.Interaction, user_id: int, tem_vip: bool, cfg: dict):
     from Modulos.vip import remover_tempo_vip
     embed = discord.Embed(title="➖ Remover tempo de VIP", description=f"Quanto tempo deseja remover de <@{user_id}>?", color=discord.Color.orange())
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     for label, dias in [("1 Dia", 1), ("3 Dias", 3), ("7 Dias", 7), ("30 Dias", 30)]:
         botao = discord.ui.Button(label=label, style=discord.ButtonStyle.blurple)
@@ -540,7 +562,7 @@ async def mostrar_gerenciar_vip(interaction: discord.Interaction, user_id: int, 
         user = await cfg["bot"].fetch_user(user_id)
     embed.set_thumbnail(url=user.avatar.url if user.avatar else user.default_avatar.url)
 
-    view = discord.ui.View()
+    view = PainelBaseView(_dono_id(interaction), cfg)
 
     if tem_vip:
         eterno = dados_vip.get("expira_em") is None
@@ -588,7 +610,7 @@ async def mostrar_gerenciar_vip(interaction: discord.Interaction, user_id: int, 
 
     voltar_btn = discord.ui.Button(label="Voltar", style=discord.ButtonStyle.secondary)
     async def voltar_callback(interaction_voltar: discord.Interaction):
-        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg))
+        await interaction_voltar.response.edit_message(embed=gerar_painel_inicial(), view=PainelView(cfg, interaction_voltar.user.id))
     voltar_btn.callback = voltar_callback
     view.add_item(voltar_btn)
 

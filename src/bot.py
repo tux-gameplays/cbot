@@ -608,7 +608,7 @@ async def on_message(message: discord.Message):
             agora = datetime.now(FUSO_BRT)
             for chave, job in [
                 (f"publico_expira:{publico_msg.id}", {"tipo": "publico_expira", "publico_id": publico_msg.id, "conteudo": conteudo, "disparar_em": (agora + timedelta(seconds=600)).isoformat()}),
-                (f"lembrete:{publico_msg.id}", {"tipo": "lembrete", "conteudo": conteudo, "disparar_em": (agora + timedelta(seconds=15)).isoformat()})
+                (f"lembrete:{publico_msg.id}", {"tipo": "lembrete", "conteudo": conteudo, "disparar_em": (agora + timedelta(seconds=10)).isoformat()})
             ]:
                 agendar_job(chave, job, bot, ARQUIVO_TIMERS, FUSO_BRT,
                             WEBHOOK_ANTECIPADO, CODIGO_ANTECIPADO, CODIGO_PUBLICO, CODIGO_LEMBRETE,
