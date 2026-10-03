@@ -7,6 +7,7 @@ from Modulos.amigos import carregar_amigos
 from Modulos.warns import (carregar_warns, warns_ativos_do_usuario, criar_warn,
                             remover_warn, checar_warns_expirados, aplicar_punicao_progressao)
 from Modulos.backup import criar_backup_manual, fazer_git_commit
+from Modulos.autoanuncio import alternar_canal
 from Modulos.painel import (gerar_painel_inicial, PainelView, mostrar_gerenciar_vip,
                              mostrar_gerenciar_amigo, mostrar_gerenciar_call, mostrar_gerenciar_warns)
 
@@ -429,8 +430,49 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         embed.add_field(name="🗑️ Removidos manualmente", value=texto_removidos[:1024], inline=False)
         await ctx.send(embed=embed)
 
+    @bot.command(name="painel")
+    async def painel_cmd(ctx: commands.Context):
+        if not eh_admin_membro(ctx.author, cfg["admin_role_id"]):
+            await ctx.send("🚫 Você não tem permissão para usar este comando.")
+            embed_log = discord.Embed(title="🚨 Tentativa de acesso bloqueada", description=f"Usuário {ctx.author.mention} tentou abrir o painel sem permissão.", color=discord.Color.red())
+            embed_log.add_field(name="ID do usuário", value=str(ctx.author.id), inline=True)
+            embed_log.add_field(name="Cargo mais alto", value=ctx.author.top_role.name, inline=True)
+            embed_log.set_thumbnail(url=ctx.author.avatar.url if ctx.author.avatar else ctx.author.default_avatar.url)
+            await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
+            return
+        await ctx.send(embed=gerar_painel_inicial(), view=PainelView(cfg, ctx.author.id))
+        embed_log = discord.Embed(title="📋 Painel aberto", description=f"{ctx.author.mention} abriu o painel de controle.", color=discord.Color.blurple())
+        embed_log.add_field(name="ID do usuário", value=str(ctx.author.id), inline=True)
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
+
+    @bot.command(name="autoanuncio")
+    async def autoanuncio_cmd(ctx: commands.Context, canal: discord.TextChannel = None):
+        alvo = canal or ctx.channel
+        if not alvo.permissions_for(ctx.author).send_messages:
+            await ctx.send("🚫 Você não tem permissão para usar este comando.")
+            return
+        if not isinstance(alvo, discord.TextChannel) or not alvo.is_news():
+            await ctx.send(f"🚫 {alvo.mention} não é um canal de anúncio.")
+            return
+        ativo = alternar_canal(alvo.id, cfg["arquivo_autoanuncio"])
+        if ativo:
+            embed = discord.Embed(title="📢 Publicação automática ativada", description=f"Toda mensagem nova em {alvo.mention} será publicada automaticamente.", color=discord.Color.green())
+            if not alvo.permissions_for(ctx.guild.me).manage_messages:
+                embed.add_field(name="⚠️ Permissão", value="Dê Gerenciar Mensagens ao bot nesse canal para ele publicar mensagens de outras pessoas.", inline=False)
+        else:
+            embed = discord.Embed(title="📢 Publicação automática desativada", description=f"As mensagens de {alvo.mention} não serão mais publicadas automaticamente.", color=discord.Color.greyple())
+        await ctx.send(embed=embed)
+        embed_log = discord.Embed(
+            title="📢 Autoanúncio ativado" if ativo else "📢 Autoanúncio desativado",
+            description=f"{ctx.author.mention} {'ativou' if ativo else 'desativou'} a publicação automática em {alvo.mention}.",
+            color=discord.Color.green() if ativo else discord.Color.greyple()
+        )
+        await registrar_log_painel(embed_log, bot=cfg["bot"], canal_id=cfg.get("logs_painel"))
+
     COMANDOS_INFO = {
         "ping": {"uso": "c+ping", "descricao": "Mostra a latência do bot."},
+        "painel": {"uso": "c+painel", "descricao": "Abre o painel de controle como mensagem pública. Mesma permissão do /painel, e só quem abriu consegue usar os botões."},
+        "autoanuncio": {"uso": "c+autoanuncio [#canal ou ID]", "descricao": "Liga ou desliga a publicação automática de um canal de anúncio. Sem canal, usa o canal atual. Quem pode enviar mensagens no canal pode usar."},
         "uptime": {"uso": "c+uptime", "descricao": "Mostra há quanto tempo o bot está online desde o último restart."},
         "cod": {"uso": "c+cod <código>", "descricao": "Envia um código formatado direto no canal onde o comando foi usado. Qualquer pessoa pode usar."},
         "backup": {"uso": "c+backup", "descricao": "Cria um backup da pasta src e Memoria. Só devs."},
@@ -460,7 +502,7 @@ def registrar_comandos(bot: commands.Bot, cfg: dict):
         "👥 Amigos": ["amigo", "amigos"],
         "🎙️ Call": ["call", "call_lock", "call_mute", "call_allmute", "call_allkick", "call_reconnect"],
         "⚠️ Warns": ["warn", "ewarn", "warns", "warn_remove", "warn_info", "warns_deleted"],
-        "🔧 Utilidades": ["ping", "uptime", "cod", "backup", "git"]
+        "🔧 Utilidades": ["ping", "uptime", "cod", "backup", "git", "painel", "autoanuncio"]
     }
 
     def montar_embed_help_geral():

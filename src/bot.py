@@ -36,6 +36,7 @@ CANAL_BANCO = int(os.getenv("CANAL_BANCO", 0))
 CANAL_COMANDOS = [int(x.strip()) for x in os.getenv("CANAL_COMANDOS", "0").split(",") if x.strip().isdigit()]
 CANAL_ANUNCIO_LIVES = int(os.getenv("CANAL_ANUNCIO_LIVES", 0))
 CANAL_ANUNCIO_VIDEOS = int(os.getenv("CANAL_ANUNCIO_VIDEOS", 0))
+CANAL_HONEYPOT = int(os.getenv("CANAL_HONEYPOT", 0))
 
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 YOUTUBE_CANAL_ID = os.getenv("YOUTUBE_CANAL_ID")
@@ -51,6 +52,8 @@ WEBHOOK_ANTECIPADO = os.getenv("CODIGO_SALAS_ANTECIPADO")
 ADMINISTRADOR = int(os.getenv("Administrador"))
 VIP = int(os.getenv("Vip"))
 AMIGOS_ROLE = int(os.getenv("Amigos"))
+GERENTE = int(os.getenv("GERENTE", 0))
+CONVITE = os.getenv("CONVITE", "")
 
 PING_LEMBRETE = os.getenv("PING_LEMBRETE", "")
 PING_LIVE_PROGRAMADA = os.getenv("PING_LIVE_PROGRAMADA", "")
@@ -72,6 +75,9 @@ ARQUIVO_SALAS = os.getenv("ARQUIVO_SALAS")
 if not ARQUIVO_SALAS and ARQUIVO_VIPS:
     import os as _os
     ARQUIVO_SALAS = _os.path.join(_os.path.dirname(ARQUIVO_VIPS), "Salas.json")
+ARQUIVO_AUTOANUNCIO = os.getenv("ARQUIVO_AUTOANUNCIO")
+if not ARQUIVO_AUTOANUNCIO and ARQUIVO_VIPS:
+    ARQUIVO_AUTOANUNCIO = os.path.join(os.path.dirname(ARQUIVO_VIPS), "AutoAnuncio.json")
 
 SALAS_PONTE = int(os.getenv("SALAS_PONTE", 0))
 ANTECIPADO_PONTE = int(os.getenv("ANTECIPADO_PONTE", 0))
@@ -109,6 +115,10 @@ CFG = {
     "admin_role_id": ADMINISTRADOR,
     "vip_role_id": VIP,
     "amigos_role_id": AMIGOS_ROLE,
+    "gerente_role_id": GERENTE,
+    "convite": CONVITE,
+    "canal_honeypot": CANAL_HONEYPOT,
+    "arquivo_autoanuncio": ARQUIVO_AUTOANUNCIO,
     "call_live": CALL_LIVE,
     "call_reconectar": CALL_RECONECTAR,
     "canal_comandos": CANAL_COMANDOS,
@@ -185,6 +195,8 @@ from Modulos.moderacao import processar_moderacao, processar_comando_local_errad
 from Modulos.salas import processar_msg_sala, processar_edicao_sala, retomar_salas_pendentes
 from Modulos.youtube import checar_youtube, monitorar_chat_live
 from Modulos.comandos import registrar_comandos
+from Modulos.honeypot import processar_honeypot
+from Modulos.autoanuncio import agendar_publicacao
 
 registrar_comandos(bot, CFG)
 
@@ -418,6 +430,8 @@ async def on_message_delete(message: discord.Message):
         return
     if message.author == bot.user:
         return
+    if CANAL_HONEYPOT and message.channel.id == CANAL_HONEYPOT:
+        return
     # Ignora mensagens de código correto que viraram embed
     if message.channel.id in [CODIGO_ANTECIPADO, CODIGO_PUBLICO]:
         if len(message.content) == 6 and message.content.isupper() and message.content.isalpha():
@@ -494,6 +508,8 @@ async def on_guild_audit_log_entry_create(entry: discord.AuditLogEntry):
 async def on_message(message: discord.Message):
     global ULTIMO_CODIGO_EM
 
+    agendar_publicacao(message, CFG)
+
     eh_bot_banco = (BOT_BANCO_ID != 0 and message.author.id == BOT_BANCO_ID and message.channel.id == CANAL_BANCO)
     eh_msg_sala = (message.channel.id in ([SALAS_PONTE] if SALAS_PONTE else []) + ([ANTECIPADO_PONTE] if ANTECIPADO_PONTE else []) and (message.webhook_id is not None or message.author.bot))
 
@@ -501,6 +517,9 @@ async def on_message(message: discord.Message):
         return
 
     if not message.author.bot:
+        bloqueado = await processar_honeypot(message, CFG)
+        if bloqueado:
+            return
         bloqueado = await processar_comando_local_errado(message, CFG)
         if bloqueado:
             return
